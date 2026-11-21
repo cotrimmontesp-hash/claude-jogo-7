@@ -26,37 +26,48 @@ const LIMITE = 165;
 
 export const jogadorPos = new THREE.Vector3();
 export const jogadorRot = new THREE.Euler();
-export const yawCamera = (camera: THREE.Camera) => { const d = new THREE.Vector3(); camera.getWorldDirection(d); return Math.atan2(d.x, d.z); };
-
 // ---------- Câmera ----------
+// O mouse gira a câmera na hora (sem atraso); só o ponto que segue o personagem é suavizado.
 function CameraRig({ alvo, modo }: { alvo: React.RefObject<THREE.Group | null>; modo: ModoCamera }) {
   const { camera } = useThree();
-  const yaw = useRef(Math.PI), pitch = useRef(0.32);
-  const olhar = useRef(new THREE.Vector3());
-  const ombroX = useRef(0), ombroZ = useRef(0);
+  const yaw = useRef(Math.PI), pitch = useRef(0.28);
+  const pivo = useRef<THREE.Vector3 | null>(null);
+  const distAtual = useRef(4.4);
   useFrame((_, dt) => {
     const p = alvo.current?.position; if (!p) return;
+    dt = Math.min(dt, 0.05);
     const sens = useJogo.getState().config.sensibilidade;
-    yaw.current -= entrada.olhar.dx * 0.0035 * sens; pitch.current += entrada.olhar.dy * 0.003 * sens;
-    pitch.current = THREE.MathUtils.clamp(pitch.current, -0.05, 1.1); entrada.olhar = { dx: 0, dy: 0 };
+    yaw.current -= entrada.olhar.dx * 0.0052 * sens;
+    pitch.current = THREE.MathUtils.clamp(pitch.current + entrada.olhar.dy * 0.0042 * sens, -0.35, 1.25);
+    entrada.olhar = { dx: 0, dy: 0 };
     const montado = !!useJogo.getState().progresso?.montado;
-    const desejo = new THREE.Vector3();
+
+    // ponto de foco suave atrás do ombro
+    const alvoPivo = new THREE.Vector3(p.x, p.y + (montado ? 2.3 : 1.55), p.z);
+    if (!pivo.current) pivo.current = alvoPivo.clone();
+    pivo.current.lerp(alvoPivo, 1 - Math.pow(0.00002, dt));
+
     if (modo === 'terceira') {
-      const d = (montado ? 7.5 : 4.4) * entrada.zoom;
-      // câmera por cima do ombro direito (estilo GTA / Assassin's Creed)
-      const ombro = montado ? 0.4 : 0.85;
-      ombroX.current = Math.cos(yaw.current) * ombro; ombroZ.current = -Math.sin(yaw.current) * ombro;
-      desejo.set(p.x + Math.sin(yaw.current) * Math.cos(pitch.current) * d + ombroX.current, p.y + 1.75 + Math.sin(pitch.current) * d, p.z + Math.cos(yaw.current) * Math.cos(pitch.current) * d + ombroZ.current);
-      desejo.y = Math.max(desejo.y, altura(desejo.x, desejo.z) + 0.8);   // câmera não entra no chão
-    } else if (modo === 'cima') desejo.set(p.x, p.y + 17, p.z + 11);
-    else desejo.set(p.x, p.y + 2.4, p.z + 12);
-    camera.position.lerp(desejo, 1 - Math.pow(0.0005, dt));
-    const terceira = modo === 'terceira';
-    olhar.current.lerp(new THREE.Vector3(p.x + (terceira ? ombroX.current : 0), p.y + (terceira ? 1.55 : 1.3), p.z + (terceira ? ombroZ.current : 0)), 1 - Math.pow(0.0001, dt));
-    camera.lookAt(olhar.current);
+      const distDesejada = (montado ? 6.5 : 4.2) * entrada.zoom;
+      distAtual.current = THREE.MathUtils.lerp(distAtual.current, distDesejada, 1 - Math.pow(0.001, dt));
+      const d = distAtual.current;
+      const ombro = montado ? 0.35 : 0.75;
+      const dir = new THREE.Vector3(Math.sin(yaw.current) * Math.cos(pitch.current), Math.sin(pitch.current), Math.cos(yaw.current) * Math.cos(pitch.current));
+      const direita = new THREE.Vector3(Math.cos(yaw.current), 0, -Math.sin(yaw.current));
+      const foco = pivo.current.clone().addScaledVector(direita, ombro);
+      const pos = foco.clone().addScaledVector(dir, d);
+      pos.y = Math.max(pos.y, altura(pos.x, pos.z) + 0.6);                    // não entra no chão
+      camera.position.copy(pos);
+      camera.lookAt(foco);
+    } else {
+      const off = modo === 'cima' ? new THREE.Vector3(0, 17, 11) : new THREE.Vector3(0, 2.4, 12);
+      camera.position.lerp(p.clone().add(off), 1 - Math.pow(0.0005, dt));
+      camera.lookAt(p.x, p.y + 1.3, p.z);
+    }
   });
   return null;
 }
+export const yawCamera = (camera: THREE.Camera) => { const d = new THREE.Vector3(); camera.getWorldDirection(d); return Math.atan2(d.x, d.z); };
 
 // ---------- Cavalo (modelo animado) ----------
 function Cavalo({ tint, escala = 1, galopando, refExterno }: { tint?: string; escala?: number; galopando: number; refExterno?: (g: THREE.Group | null) => void }) {

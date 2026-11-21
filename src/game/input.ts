@@ -39,7 +39,11 @@ export function ligarTecladoMouse() {
   };
   const mu = (e: MouseEvent) => { if (e.button === 0) entrada.atacar = false; if (e.button === 2) entrada.furtivo = teclas.has('control') || teclas.has('c'); };
   const mm = (e: MouseEvent) => {
-    if (document.pointerLockElement || e.buttons & 2) { entrada.olhar.dx += e.movementX; entrada.olhar.dy += e.movementY; }
+    // com o mouse preso, ou segurando o botão esquerdo/direito: gira a câmera
+    if (document.pointerLockElement || e.buttons & 3) {
+      const lim = (v: number) => Math.max(-120, Math.min(120, v));          // ignora "pulos" que o Windows às vezes manda
+      entrada.olhar.dx += lim(e.movementX); entrada.olhar.dy += lim(e.movementY);
+    }
   };
   const roda = (e: WheelEvent) => { if (alvoValido(e) || document.pointerLockElement) entrada.zoom = Math.min(1.8, Math.max(0.55, entrada.zoom * (e.deltaY > 0 ? 1.08 : 0.92))); };
   const trava = () => { entrada.mouseTravado = !!document.pointerLockElement; if (!entrada.mouseTravado) entrada.atacar = false; };
