@@ -82,7 +82,6 @@ function gerarLayout() {
 
   // Fazenda e moinhos
   add('cenario/windmill_red', noChao(-62, 44, 0.6, S * 1.3));
-  add('cenario/grain', noChao(-48, 58, 0, S)); add('cenario/grain', noChao(-60, 66, 0.2, S)); add('cenario/grain', noChao(-74, 56, -0.1, S));
   add('cenario/home_B_red', noChao(-78, 38, 0.9, S));
   add('cenario/watermill_red', noChao(57, 32, -Math.PI / 2, S * 1.2));
   add('cenario/lumbermill_red', noChao(-30, 92, 0.3, S));

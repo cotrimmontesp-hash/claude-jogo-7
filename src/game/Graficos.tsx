@@ -45,7 +45,7 @@ export function Graficos() {
         <Sky sunPosition={[sol.x, sol.y, sol.z]} turbidity={hora > 15.5 || hora < 8 ? 9 : 5} rayleigh={hora > 15.5 || hora < 8 ? 2.6 : 1.4} mieCoefficient={0.007} mieDirectionalG={0.88} />
       ) : (
         <Suspense fallback={null}><Environment files={textura(hora >= 8 && hora < 16 ? 'ph/ceu_dia.hdr' : 'ph/ceu_tarde.hdr')} background
-          backgroundIntensity={noite ? 0.06 : hora < 6.5 || hora > 18.5 ? 0.45 : 1} environmentIntensity={noite ? 0.12 : 0.55}
+          backgroundIntensity={noite ? 0.06 : hora < 6.5 || hora > 18.5 ? 0.45 : 1} environmentIntensity={noite ? 0.22 : 0.55}
           backgroundRotation={[0, Math.PI * 0.5, 0]} environmentRotation={[0, Math.PI * 0.5, 0]} /></Suspense>
       )}
       {(hora > 18.5 || hora < 5.5) && <Stars radius={180} depth={40} count={2500} factor={5} saturation={0.2} fade speed={0.5} />}

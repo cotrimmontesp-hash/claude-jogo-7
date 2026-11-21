@@ -350,10 +350,10 @@ export function Mundo() {
       const ox = Math.cos(ang) * 60, oy = Math.max(Math.abs(elev), 0.35) * 70;
       sol.current.position.set(jogadorPos.x + (dia > 0.5 ? ox : -ox * 0.6), jogadorPos.y + oy, jogadorPos.z + 30);
       sol.current.target.position.copy(jogadorPos); sol.current.target.updateMatrixWorld();
-      sol.current.intensity = THREE.MathUtils.lerp(0.55, elev < 0.3 ? 2.2 : 3.0, dia);
+      sol.current.intensity = THREE.MathUtils.lerp(0.9, elev < 0.3 ? 2.2 : 3.0, dia);
       sol.current.color.set(dia < 0.5 ? '#9fb4ff' : elev < 0.3 ? '#ffb070' : '#fff2dc');
     }
-    if (hemi.current) { hemi.current.intensity = THREE.MathUtils.lerp(0.55, 0.9, dia); hemi.current.color.set(dia < 0.5 ? '#5a6fa8' : '#cfe3ff'); }
+    if (hemi.current) { hemi.current.intensity = THREE.MathUtils.lerp(0.85, 0.9, dia); hemi.current.color.set(dia < 0.5 ? '#5a6fa8' : '#cfe3ff'); }
 
     // animais
     for (const a of animais) {

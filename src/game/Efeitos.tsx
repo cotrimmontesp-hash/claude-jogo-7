@@ -132,7 +132,17 @@ export function Particulas() {
   const N = 260;
   const base = useMemo(() => Float32Array.from({ length: N * 3 }, () => (Math.random() - 0.5)), []);
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3)); return g; }, []);
-  const mat = useMemo(() => new THREE.PointsMaterial({ size: 0.14, color: '#ffe08a', transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), []);
+  const mat = useMemo(() => {
+    const m = new THREE.PointsMaterial({ size: 0.14, color: '#ffe08a', transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+    // ponto redondo com brilho que some nas bordas (antes aparecia quadrado)
+    m.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+        float r = length(gl_PointCoord - vec2(0.5));
+        if (r > 0.5) discard;`).replace('#include <premultiplied_alpha_fragment>', `#include <premultiplied_alpha_fragment>
+        gl_FragColor.a *= smoothstep(0.5, 0.0, length(gl_PointCoord - vec2(0.5)));`);
+    };
+    return m;
+  }, []);
   useFrame(({ clock }) => {
     const t = clock.elapsedTime, pos = geo.attributes.position as THREE.BufferAttribute;
     const h = useJogo.getState().progresso?.horaDoDia ?? 12, noite = h > 18.5 || h < 5.5;
