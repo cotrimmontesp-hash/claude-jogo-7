@@ -37,12 +37,12 @@ function CameraRig({ alvo, modo }: { alvo: React.RefObject<THREE.Group | null>; 
   useFrame((_, dt) => {
     const p = alvo.current?.position; if (!p) return;
     const sens = useJogo.getState().config.sensibilidade;
-    yaw.current -= entrada.olhar.dx * 0.005 * sens; pitch.current += entrada.olhar.dy * 0.004 * sens;
+    yaw.current -= entrada.olhar.dx * 0.0035 * sens; pitch.current += entrada.olhar.dy * 0.003 * sens;
     pitch.current = THREE.MathUtils.clamp(pitch.current, -0.05, 1.1); entrada.olhar = { dx: 0, dy: 0 };
     const montado = !!useJogo.getState().progresso?.montado;
     const desejo = new THREE.Vector3();
     if (modo === 'terceira') {
-      const d = montado ? 7.5 : 4.4;
+      const d = (montado ? 7.5 : 4.4) * entrada.zoom;
       // câmera por cima do ombro direito (estilo GTA / Assassin's Creed)
       const ombro = montado ? 0.4 : 0.85;
       ombroX.current = Math.cos(yaw.current) * ombro; ombroZ.current = -Math.sin(yaw.current) * ombro;

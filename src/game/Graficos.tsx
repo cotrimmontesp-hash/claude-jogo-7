@@ -50,7 +50,7 @@ export function Graficos() {
           {raios && disco ? <GodRays sun={disco} samples={qualidade === 'ultra' ? 60 : 36} density={0.94} decay={0.93} weight={0.35} exposure={0.45} clampMax={1} blur blendFunction={BlendFunction.SCREEN} /> : <></>}
           <Bloom intensity={0.7} luminanceThreshold={0.8} luminanceSmoothing={0.2} mipmapBlur />
           <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-          <HueSaturation saturation={0.2} />
+          <HueSaturation saturation={-0.08} />
           <BrightnessContrast brightness={0.02} contrast={0.14} />
           <Vignette offset={0.3} darkness={0.5} />
           <SMAA />

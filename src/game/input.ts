@@ -5,6 +5,8 @@ export const entrada = {
   mover: { x: 0, y: 0 },          // -1..1
   correr: false, pular: false, atacar: false, furtivo: false, interagir: false, visaoAguia: false,
   olhar: { dx: 0, dy: 0 },        // arraste da câmera
+  zoom: 1,                        // rodinha do mouse (0.55–1.8)
+  mouseTravado: false,            // mouse preso no jogo (estilo GTA)
 };
 
 const teclas = new Set<string>();
@@ -25,16 +27,32 @@ export function ligarTecladoMouse() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return () => {};
   const down = (e: KeyboardEvent) => { teclas.add(e.key.toLowerCase()); atualizarTeclado(); };
   const up = (e: KeyboardEvent) => { teclas.delete(e.key.toLowerCase()); atualizarTeclado(); };
-  const md = (e: MouseEvent) => { if (e.button === 0) entrada.atacar = true; };
-  const mu = () => { entrada.atacar = false; };
-  const mm = (e: MouseEvent) => { if (e.buttons & 2 || document.pointerLockElement) { entrada.olhar.dx += e.movementX; entrada.olhar.dy += e.movementY; } };
+  // Clique na tela do jogo prende o mouse: mexer o mouse gira a câmera (Esc solta).
+  const alvoValido = (e: Event) => (e.target as HTMLElement)?.tagName === 'CANVAS';
+  const md = (e: MouseEvent) => {
+    if (!document.pointerLockElement) {
+      if (e.button === 0 && alvoValido(e)) { (e.target as HTMLElement).requestPointerLock?.(); }
+      return;                                      // o primeiro clique só prende o mouse, não ataca
+    }
+    if (e.button === 0) entrada.atacar = true;
+    if (e.button === 2) entrada.furtivo = true;    // botão direito: modo furtivo / mira
+  };
+  const mu = (e: MouseEvent) => { if (e.button === 0) entrada.atacar = false; if (e.button === 2) entrada.furtivo = teclas.has('control') || teclas.has('c'); };
+  const mm = (e: MouseEvent) => {
+    if (document.pointerLockElement || e.buttons & 2) { entrada.olhar.dx += e.movementX; entrada.olhar.dy += e.movementY; }
+  };
+  const roda = (e: WheelEvent) => { if (alvoValido(e) || document.pointerLockElement) entrada.zoom = Math.min(1.8, Math.max(0.55, entrada.zoom * (e.deltaY > 0 ? 1.08 : 0.92))); };
+  const trava = () => { entrada.mouseTravado = !!document.pointerLockElement; if (!entrada.mouseTravado) entrada.atacar = false; };
   const menu = (e: Event) => e.preventDefault();
   window.addEventListener('keydown', down); window.addEventListener('keyup', up);
   window.addEventListener('mousedown', md); window.addEventListener('mouseup', mu);
   window.addEventListener('mousemove', mm); window.addEventListener('contextmenu', menu);
+  window.addEventListener('wheel', roda, { passive: true }); document.addEventListener('pointerlockchange', trava);
   return () => {
     window.removeEventListener('keydown', down); window.removeEventListener('keyup', up);
     window.removeEventListener('mousedown', md); window.removeEventListener('mouseup', mu);
     window.removeEventListener('mousemove', mm); window.removeEventListener('contextmenu', menu);
+    window.removeEventListener('wheel', roda); document.removeEventListener('pointerlockchange', trava);
+    if (document.pointerLockElement) document.exitPointerLock();
   };
 }

@@ -4,6 +4,8 @@ import { useJogo } from '../state/store';
 import { CAPITULOS } from '../data/story';
 import { MONTARIAS } from '../data/mounts';
 import { cores } from './tema';
+import { Platform } from 'react-native';
+import { entrada } from '../game/input';
 import { defenderNoMapa, defenderAutomatico, useBatalha } from '../game/claLogica';
 import { entrarNaCall, sairDaCall, alternarMudo } from '../net/voz';
 
@@ -39,6 +41,7 @@ export function HUD({ onPausar }: { onPausar: () => void }) {
   const missao = cap?.missoes[p.missao - 1];
   const hora = `${String(Math.floor(p.horaDoDia)).padStart(2, '0')}:${String(Math.floor((p.horaDoDia % 1) * 60)).padStart(2, '0')}`;
   const mont = p.montado ? MONTARIAS.find((m) => m.id === p.montado) : null;
+  const pc = Platform.OS === 'web' && typeof window !== 'undefined' && !('ontouchstart' in window);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -71,6 +74,11 @@ export function HUD({ onPausar }: { onPausar: () => void }) {
           <Text style={s.obj}>Aliados {combatentes.filter((c) => c.lado === 'aliado' && c.vida > 0).length} · Inimigos {combatentes.filter((c) => c.lado === 'inimigo' && c.vida > 0).length}</Text>
         </View>
       )}
+      {pc && !entrada.mouseTravado && (
+        <View style={s.dica} pointerEvents="none">
+          <Text style={s.dicaTxt}>🖱 Clique na tela para controlar a câmera com o mouse  •  Rodinha: zoom  •  Esc: soltar o mouse</Text>
+        </View>
+      )}
       <View style={s.topoDir}>
         <Text style={s.hora}>{p.horaDoDia > 19 || p.horaDoDia < 6 ? '🌙' : '☀'} {hora}</Text>
         {mont && <Text style={s.hora}>🐎 {mont.nome}</Text>}
@@ -94,6 +102,8 @@ const s = StyleSheet.create({
   topoDir: { position: 'absolute', top: 12, right: 12, alignItems: 'flex-end', gap: 4 },
   hora: { color: cores.texto, fontWeight: '800', backgroundColor: '#0008', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   pausa: { marginTop: 4 },
+  dica: { position: 'absolute', bottom: 18, alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
+  dicaTxt: { color: cores.texto, backgroundColor: '#000a', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, fontSize: 13 },
   invasao: { position: 'absolute', top: 60, alignSelf: 'center', left: 0, right: 0, alignItems: 'center', gap: 4 },
   invTit: { color: '#fff', backgroundColor: '#b8342acc', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, fontWeight: '900' },
   invBtn: { backgroundColor: '#000b', borderWidth: 1, borderColor: cores.ouro, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
