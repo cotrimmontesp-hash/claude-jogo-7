@@ -1,10 +1,10 @@
 // Casas por dentro + paredes sólidas.
 // Cada casa tem porta: chegando perto e apertando USAR você entra num cômodo mobiliado (cama, mesa, lareira, baú...).
 // As paredes do cômodo só aparecem por dentro, então a câmera vê o interior mesmo estando "atrás" da parede.
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { create } from 'zustand';
-import { useFrame } from './r3f';
+import { useFrame, useThree } from './r3f';
 import { useTexture } from './drei';
 import { entrada } from './input';
 import { textura } from './modelos';
@@ -250,10 +250,23 @@ export function Interior() {
       ferro: new THREE.MeshStandardMaterial({ color: '#3d3d40', metalness: 0.8, roughness: 0.45 }),
     };
   }, [tex]);
-  const chama = useRef<THREE.PointLight>(null);
-  useFrame(({ clock }) => { if (chama.current) chama.current.intensity = 18 + Math.sin(clock.elapsedTime * 13) * 3 + Math.sin(clock.elapsedTime * 7.3) * 2; });
-  if (casa === null || !casasMundo[casa]) return null;
-  const tipo = casasMundo[casa].tipo; const { W, D, H } = SALA[tipo];
+  // Luzes SEMPRE montadas (mesma quantidade dentro e fora de casa): trocar o número de luzes
+  // faz o navegador recompilar todos os materiais do mundo e o jogo travava ao apertar USAR.
+  const chama = useRef<THREE.PointLight>(null), teto = useRef<THREE.PointLight>(null), balcao = useRef<THREE.PointLight>(null), hemi = useRef<THREE.HemisphereLight>(null);
+  const dentro = casa !== null && !!casasMundo[casa];
+  const tipo: TipoCasa = dentro ? casasMundo[casa!].tipo : 'terrea'; const { W, D, H } = SALA[tipo];
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime, on = dentro ? 1 : 0;
+    if (chama.current) chama.current.intensity = on * (18 + Math.sin(t * 13) * 3 + Math.sin(t * 7.3) * 2);
+    if (teto.current) teto.current.intensity = on * (tipo === 'igreja' ? 22 : 8);
+    if (balcao.current) balcao.current.intensity = on * 4;
+    if (hemi.current) hemi.current.intensity = on * 0.6;
+  });
+  // compila tudo uma vez no carregamento, para entrar na casa ser instantâneo
+  const { gl, scene, camera } = useThree();
+  useEffect(() => { const g: any = gl; try { g.compileAsync ? g.compileAsync(scene, camera) : g.compile(scene, camera); } catch {} }, []);
+  const [cxL, czL] = posComerciante(tipo);
+  const posFogo: [number, number, number] = tipo === 'oficina' ? [-W / 2 + 1.2, 1.8, -D / 2 + 1] : tipo === 'igreja' ? [0, 2.9, -D / 2 + 1.6] : [0, 0.9, -D / 2 + 1.4];
   const igreja = tipo === 'igreja', oficina = tipo === 'oficina', venda = tipo === 'venda';
   return (
     <group position={[INTERIOR.x, INTERIOR.y, INTERIOR.z]}>
@@ -267,14 +280,16 @@ export function Interior() {
       <Caixa p={[0.5, 1.15, D / 2 - 0.13]} s={[0.12, 0.12, 0.05]} m={mats.ferro} />
       {/* janelas com luz entrando */}
       {[-W / 4, W / 4].map((x, i) => <mesh key={i} position={[x, H * 0.55, -D / 2 + 0.03]}><planeGeometry args={[1.1, 1.3]} /><meshBasicMaterial color="#cfe6ff" /></mesh>)}
-      <hemisphereLight args={['#ffe9c9', '#4a3a2a', 0.6]} />
+      <hemisphereLight ref={hemi} args={['#ffe9c9', '#4a3a2a', 0]} />
+      <pointLight ref={chama} position={posFogo} color={tipo === 'igreja' ? '#ffc070' : '#ff8a35'} intensity={0} distance={tipo === 'igreja' ? 12 : 14} />
+      <pointLight ref={teto} position={[0, H - 0.8, 0]} color="#ffdcae" intensity={0} distance={tipo === 'igreja' ? 30 : 16} />
+      <pointLight ref={balcao} position={[cxL + 0.8, 2.4, czL]} color="#ffcf8a" intensity={0} distance={6} />
       {/* comerciante atrás do balcão */}
       {(() => { const [cx, cz] = posComerciante(tipo); return <group>
-        <group position={[cx, 0, cz]} rotation={[0, Math.PI / 2, 0]}><Personagem3D arquivo={casa % 2 ? 'mixamo/tome' : 'mixamo/ines'} anim="Idle" cor={COMERCIANTE[tipo].cor} sombra={false} /></group>
+        <group position={[cx, 0, cz]} rotation={[0, Math.PI / 2, 0]}><Personagem3D arquivo={(casa ?? 0) % 2 ? 'mixamo/tome' : 'mixamo/ines'} anim="Idle" cor={COMERCIANTE[tipo].cor} sombra={false} /></group>
         <Caixa p={[cx + 0.75, 0.55, cz]} s={[0.6, 1.1, 2.2]} m={mats.madeira} />
         <Caixa p={[cx + 0.75, 1.13, cz]} s={[0.75, 0.06, 2.35]} m={mats.escura} />
         <mesh position={[cx + 0.7, 1.25, cz - 0.6]}><cylinderGeometry args={[0.12, 0.12, 0.2, 10]} /><primitive object={mats.ouro} attach="material" /></mesh>
-        <pointLight position={[cx + 0.8, 2.4, cz]} color="#ffcf8a" intensity={4} distance={6} />
       </group>; })()}
 
       {igreja ? <>
@@ -284,8 +299,7 @@ export function Interior() {
         <Caixa p={[0, 4, -D / 2 + 0.3]} s={[4, 5, 0.3]} m={mats.ouro} />
         <Caixa p={[0, 4.5, -D / 2 + 0.5]} s={[0.25, 2.6, 0.2]} m={mats.escura} />
         <Caixa p={[0, 5.2, -D / 2 + 0.5]} s={[1.3, 0.25, 0.2]} m={mats.escura} />
-        {[-1.6, 1.6].map((x) => <group key={x}><Caixa p={[x, 2.4, -D / 2 + 1.4]} s={[0.12, 0.6, 0.12]} m={mats.lencol} /><pointLight position={[x, 2.9, -D / 2 + 1.4]} color="#ffc070" intensity={6} distance={10} /></group>)}
-        <pointLight position={[0, H - 1, 0]} color="#ffe2b0" intensity={20} distance={30} />
+        {[-1.6, 1.6].map((x) => <group key={x}><Caixa p={[x, 2.4, -D / 2 + 1.4]} s={[0.12, 0.6, 0.12]} m={mats.lencol} /></group>)}
       </> : <>
         {/* mesa com pão e jarra */}
         <Caixa p={[0, 0.78, 0]} s={[2.2, 0.1, 1.2]} m={mats.madeira} />
@@ -306,7 +320,6 @@ export function Interior() {
           <Caixa p={[-W / 2 + 2.3, 0.4, -D / 2 + 2.3]} s={[0.5, 0.8, 0.5]} m={mats.escura} />
           <Caixa p={[-W / 2 + 2.3, 0.9, -D / 2 + 2.3]} s={[1, 0.25, 0.4]} m={mats.ferro} />
           {[0, 1, 2].map((i) => <Caixa key={i} p={[-W / 2 + 0.08, 1.4 + i * 0.4, 1 + i * 0.5]} s={[0.05, 0.9, 0.12]} m={mats.ferro} r={0.3} />)}
-          <pointLight ref={chama} position={[-W / 2 + 1.2, 1.8, -D / 2 + 1]} color="#ff7a2a" distance={12} />
         </> : <>
           {/* cama ou balcão */}
           {venda ? <>
@@ -322,11 +335,9 @@ export function Interior() {
           <Caixa p={[0, 0.9, -D / 2 + 0.45]} s={[1.9, 1.8, 0.8]} m={mats.pedra} />
           <mesh position={[0, 0.45, -D / 2 + 0.86]}><boxGeometry args={[0.9, 0.6, 0.05]} /><primitive object={mats.fogo} attach="material" /></mesh>
           <Caixa p={[0, H / 2 + 1, -D / 2 + 0.35]} s={[1, H - 1.8, 0.6]} m={mats.pedra} />
-          <pointLight ref={chama} position={[0, 0.9, -D / 2 + 1.4]} color="#ff9a40" distance={14} />
         </>}
         {/* tapete */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 1.6]}><planeGeometry args={[3, 1.6]} /><primitive object={mats.tecido} attach="material" /></mesh>
-        <pointLight position={[0, H - 0.6, 0]} color="#ffdcae" intensity={8} distance={16} />
       </>}
     </group>
   );

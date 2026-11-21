@@ -45,8 +45,7 @@ function Marcador({ pos, cor = '#ffd36b' }: { pos: THREE.Vector3; cor?: string }
 function Lenha({ pos }: { pos: THREE.Vector3 }) {
   return (
     <group position={pos}>
-      {[0, 1, 2].map((i) => <mesh key={i} position={[0, 0.15 + i * 0.12, 0]} rotation={[0, i * 0.9, Math.PI / 2]} castShadow><cylinderGeometry args={[0.08, 0.09, 1.1, 6]} /><meshStandardMaterial color="#6b4a2b" roughness={1} /></mesh>)}
-      <pointLight color="#ffd36b" intensity={4} distance={4} position={[0, 0.8, 0]} />
+      {[0, 1, 2].map((i) => <mesh key={i} position={[0, 0.15 + i * 0.12, 0]} rotation={[0, i * 0.9, Math.PI / 2]} castShadow><cylinderGeometry args={[0.08, 0.09, 1.1, 6]} /><meshStandardMaterial color="#6b4a2b" roughness={1} emissive="#5a3a10" emissiveIntensity={0.5} /></mesh>)}
     </group>
   );
 }
