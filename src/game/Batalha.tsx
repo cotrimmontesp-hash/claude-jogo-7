@@ -11,13 +11,13 @@ import { altura } from './Terreno';
 import { ARMAS } from '../data/items';
 
 const MODELO: Record<string, { arq: string; arma: string; escudo?: boolean }> = {
-  espadachim: { arq: 'npc/guarda', arma: 'armas/sword_1handed', escudo: true },
-  machadeiro: { arq: 'herois/tome', arma: 'armas/axe_1handed', escudo: true },
-  lanceiro: { arq: 'npc/guarda', arma: 'armas/sword_2handed' },
-  arqueiro: { arq: 'npc/rogue', arma: 'armas/dagger' },
-  batedor: { arq: 'herois/ines', arma: 'armas/dagger' },
-  cavaleiro: { arq: 'npc/guarda', arma: 'armas/sword_1handed', escudo: true },
-  guarda: { arq: 'npc/guarda', arma: 'armas/sword_1handed', escudo: true },
+  espadachim: { arq: 'mixamo/guarda', arma: 'armas/sword_1handed', escudo: true },
+  machadeiro: { arq: 'mixamo/tome', arma: 'armas/axe_1handed' },
+  lanceiro: { arq: 'mixamo/guarda', arma: 'armas/sword_2handed' },
+  arqueiro: { arq: 'mixamo/ines', arma: 'armas/dagger' },
+  batedor: { arq: 'mixamo/ines', arma: 'armas/dagger' },
+  cavaleiro: { arq: 'mixamo/guarda', arma: 'armas/sword_1handed', escudo: true },
+  guarda: { arq: 'mixamo/guarda', arma: 'armas/sword_1handed', escudo: true },
 };
 
 export function Batalha() {

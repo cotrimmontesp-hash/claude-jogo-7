@@ -30,7 +30,7 @@ export function GrupoPreview({ membros, onVagaLivre }: { membros: Pick<MembroSal
         <Suspense fallback={null}>
           {membros.slice(0, 5).map((m, i) => (
             <Personagem3D key={m.id} arquivo={MODELOS_HEROI[m.heroi]} posicao={[POS_X[i], 0, Math.abs(POS_X[i]) * -0.25]} rotacao={-POS_X[i] * 0.08}
-              anim={i === 0 ? 'Idle' : '2H_Melee_Idle'} arma={m.heroi === 'tome' ? 'armas/axe_1handed' : 'armas/dagger'} escudo={m.heroi === 'tome'} />
+              anim={i === 0 ? 'Idle' : '2H_Melee_Idle'} arma={m.heroi === 'tome' ? 'armas/axe_1handed' : 'armas/dagger'} escudo={false} />
           ))}
         </Suspense>
         <Fogueira />

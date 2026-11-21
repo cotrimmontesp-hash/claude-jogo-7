@@ -156,7 +156,7 @@ function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number,
       <group ref={ref}>
         {mont && <Cavalo tint={tintMont} escala={mont.tipo === 'jumento' ? 0.75 : mont.tipo === 'mula' ? 0.88 : 1} galopando={galope} />}
         <Personagem3D arquivo={MODELOS_HEROI[heroiId]} anim={anim} arma={mont ? null : modeloArma(armaId, arma?.tipo)}
-          escudo={heroiId === 'tome' && !mont} posicao={mont ? [0, 1.05, -0.1] : [0, 0, 0]} cor={skinCor} />
+          escudo={false} posicao={mont ? [0, 1.05, -0.1] : [0, 0, 0]} cor={skinCor} />
       </group>
       <CameraRig alvo={ref} modo={modo} />
     </>

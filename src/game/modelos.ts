@@ -17,7 +17,7 @@ export const ESCALA = {
   ave: 0.006,
 };
 
-export const MODELOS_HEROI = { ines: 'herois/ines', tome: 'herois/tome' } as const;
+export const MODELOS_HEROI = { ines: 'mixamo/ines', tome: 'mixamo/tome' } as const;   // realistas (Mixamo + Blender)
 
 // Arma equipada -> modelo que vai na mão direita
 export function modeloArma(armaId: string, tipo?: string) {
