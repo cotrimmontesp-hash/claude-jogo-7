@@ -12,11 +12,11 @@ import { useJogo } from '../state/store';
 export const vento = { uniform: { value: 0 } };
 
 // Faz qualquer material balançar com o vento (mais no topo do objeto). Funciona com instancing.
-export function aplicarVento(mat: THREE.Material, forca = 0.05, alturaRef = 1) {
+export function aplicarVento(mat: THREE.Material, forca = 0.05, alturaRef = 1, outono = false) {
   const m = mat.clone();
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uTempo = vento.uniform;
-    sh.vertexShader = 'uniform float uTempo;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    sh.vertexShader = 'uniform float uTempo;\nvarying float vOut;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
       float h = clamp(position.y / ${alturaRef.toFixed(2)}, 0.0, 1.0);
       #ifdef USE_INSTANCING
         vec2 base = vec2(instanceMatrix[3].x, instanceMatrix[3].z);
@@ -25,9 +25,19 @@ export function aplicarVento(mat: THREE.Material, forca = 0.05, alturaRef = 1) {
       #endif
       float onda = sin(uTempo * 1.7 + base.x * 0.15 + base.y * 0.11) + 0.4 * sin(uTempo * 3.1 + base.x * 0.4);
       transformed.x += onda * ${forca.toFixed(3)} * h * h;
-      transformed.z += onda * ${(forca * 0.6).toFixed(3)} * h * h;`);
+      transformed.z += onda * ${(forca * 0.6).toFixed(3)} * h * h;
+      vOut = fract(sin(dot(base, vec2(12.9898, 78.233))) * 43758.5453);`);
+    if (outono) {
+      // ~45% das árvores ganham folhas de outono (laranja, vermelho, amarelo), como nas paisagens do trailer
+      sh.fragmentShader = 'varying float vOut;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        float verde = step(diffuseColor.r * 1.05, diffuseColor.g) * step(diffuseColor.b, diffuseColor.g);
+        vec3 cor = mix(vec3(0.98, 0.46, 0.08), vec3(0.82, 0.16, 0.07), step(0.5, fract(vOut * 3.7)));
+        cor = mix(cor, vec3(0.98, 0.78, 0.16), step(0.66, fract(vOut * 7.1)));
+        float lum = dot(diffuseColor.rgb, vec3(0.3, 0.59, 0.11));
+        diffuseColor.rgb = mix(diffuseColor.rgb, cor * lum * 2.3, verde * step(0.55, vOut));`);
+    }
   };
-  m.customProgramCacheKey = () => `vento${forca}${alturaRef}`;
+  m.customProgramCacheKey = () => `vento${forca}${alturaRef}${outono}`;
   return m;
 }
 

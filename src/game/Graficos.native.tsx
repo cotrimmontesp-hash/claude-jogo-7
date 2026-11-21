@@ -14,7 +14,7 @@ export function Graficos() {
       <Sky sunPosition={[Math.cos(ang) * 100, Math.sin(ang) * 100, 30]} turbidity={6} rayleigh={1.5} />
       <hemisphereLight args={['#cfe0ff', '#4a3a28', 0.6]} />
       {(hora > 18.5 || hora < 5.5) && <Stars radius={180} depth={40} count={1500} factor={5} fade />}
-      <fog attach="fog" args={[corNeblina(hora), q.distancia * 0.35, q.distancia]} />
+      <fogExp2 attach="fog" args={[corNeblina(hora), 0.0075]} />
     </>
   );
 }

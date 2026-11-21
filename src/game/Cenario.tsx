@@ -22,7 +22,7 @@ function Instancias({ arquivo, lista, sombra = true }: { arquivo: string; lista:
     scene.updateMatrixWorld(true);
     const out: { geo: THREE.BufferGeometry; mat: THREE.Material; m: THREE.Matrix4 }[] = [];
     const balanca = /tree|cloud/.test(arquivo);
-    scene.traverse((o: any) => { if (o.isMesh) out.push({ geo: o.geometry, mat: balanca ? aplicarVento(o.material, /cloud/.test(arquivo) ? 0.15 : 0.06, 1) : o.material, m: o.matrixWorld.clone() }); });
+    scene.traverse((o: any) => { if (o.isMesh) out.push({ geo: o.geometry, mat: balanca ? aplicarVento(o.material, /cloud/.test(arquivo) ? 0.15 : 0.06, 1, /tree/.test(arquivo)) : o.material, m: o.matrixWorld.clone() }); });
     return out;
   }, [scene, arquivo]);
   return <>{partes.map((pt, i) => <ParteInstanciada key={i} {...pt} lista={lista} sombra={sombra} />)}</>;

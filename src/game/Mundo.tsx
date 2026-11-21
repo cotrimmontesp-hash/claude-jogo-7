@@ -21,7 +21,7 @@ import { verificarInvasao } from './claLogica';
 import { modelo, ESCALA, MODELOS_HEROI, modeloArma } from './modelos';
 
 const VEL_ANDAR = 2.6, VEL_CORRER = 6.2, VEL_FURTIVO = 1.5, GRAVIDADE = 24, PULO = 8.5;
-const DURACAO_DIA = 24 * 60; // 24 min reais = 1 dia no jogo
+const DURACAO_DIA = 36 * 60; // 24 min reais = 1 dia no jogo
 const LIMITE = 165;
 
 export const jogadorPos = new THREE.Vector3();
@@ -33,6 +33,7 @@ function CameraRig({ alvo, modo }: { alvo: React.RefObject<THREE.Group | null>; 
   const { camera } = useThree();
   const yaw = useRef(Math.PI), pitch = useRef(0.32);
   const olhar = useRef(new THREE.Vector3());
+  const ombroX = useRef(0), ombroZ = useRef(0);
   useFrame((_, dt) => {
     const p = alvo.current?.position; if (!p) return;
     const sens = useJogo.getState().config.sensibilidade;
@@ -41,13 +42,17 @@ function CameraRig({ alvo, modo }: { alvo: React.RefObject<THREE.Group | null>; 
     const montado = !!useJogo.getState().progresso?.montado;
     const desejo = new THREE.Vector3();
     if (modo === 'terceira') {
-      const d = montado ? 8.5 : 6.2;
-      desejo.set(p.x + Math.sin(yaw.current) * Math.cos(pitch.current) * d, p.y + 1.9 + Math.sin(pitch.current) * d, p.z + Math.cos(yaw.current) * Math.cos(pitch.current) * d);
+      const d = montado ? 7.5 : 4.4;
+      // câmera por cima do ombro direito (estilo GTA / Assassin's Creed)
+      const ombro = montado ? 0.4 : 0.85;
+      ombroX.current = Math.cos(yaw.current) * ombro; ombroZ.current = -Math.sin(yaw.current) * ombro;
+      desejo.set(p.x + Math.sin(yaw.current) * Math.cos(pitch.current) * d + ombroX.current, p.y + 1.75 + Math.sin(pitch.current) * d, p.z + Math.cos(yaw.current) * Math.cos(pitch.current) * d + ombroZ.current);
       desejo.y = Math.max(desejo.y, altura(desejo.x, desejo.z) + 0.8);   // câmera não entra no chão
     } else if (modo === 'cima') desejo.set(p.x, p.y + 17, p.z + 11);
     else desejo.set(p.x, p.y + 2.4, p.z + 12);
     camera.position.lerp(desejo, 1 - Math.pow(0.0005, dt));
-    olhar.current.lerp(new THREE.Vector3(p.x, p.y + 1.4, p.z), 1 - Math.pow(0.0001, dt));
+    const terceira = modo === 'terceira';
+    olhar.current.lerp(new THREE.Vector3(p.x + (terceira ? ombroX.current : 0), p.y + (terceira ? 1.55 : 1.3), p.z + (terceira ? ombroZ.current : 0)), 1 - Math.pow(0.0001, dt));
     camera.lookAt(olhar.current);
   });
   return null;

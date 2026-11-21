@@ -21,7 +21,7 @@ export const ALTURA_AGUA = -1.2;
 export function altura(x: number, z: number) {
   const d = Math.hypot(x, z);
   const vila = THREE.MathUtils.smoothstep(d, 22, 55);          // plano na aldeia
-  const borda = THREE.MathUtils.smoothstep(d, 120, 190) * 22;  // sobe para as montanhas
+  const borda = THREE.MathUtils.smoothstep(d, 115, 195) * 42 + THREE.MathUtils.smoothstep(d, 150, 200) * Math.max(0, ruido(x * 2, z * 2)) * 25;  // sobe para as montanhas
   let h = ruido(x, z) * 6 * vila + borda;
   const rio = distRio(x, z);
   if (rio < 9) h = THREE.MathUtils.lerp(ALTURA_AGUA - 1.4, h, THREE.MathUtils.smoothstep(rio, 3, 9));
@@ -32,7 +32,7 @@ export function altura(x: number, z: number) {
 
 const C = {
   grama1: new THREE.Color('#5d8a3a'), grama2: new THREE.Color('#7ea446'), grama3: new THREE.Color('#47702e'),
-  terra: new THREE.Color('#9a7a4f'), areia: new THREE.Color('#c9b182'), pedra: new THREE.Color('#7d776b'),
+  terra: new THREE.Color('#9a7a4f'), neve: new THREE.Color('#f4f6fa'), areia: new THREE.Color('#c9b182'), pedra: new THREE.Color('#7d776b'),
 };
 
 export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
@@ -50,7 +50,8 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
       const est = distEstrada(x, z); if (est < 3.2) c.lerp(C.terra, 1 - est / 3.2);
       const praca = Math.hypot(x, z); if (praca < 14) c.lerp(C.terra, THREE.MathUtils.smoothstep(14 - praca, 0, 4) * 0.85);
       const rio = distRio(x, z); if (rio < 11) c.lerp(C.areia, 1 - THREE.MathUtils.smoothstep(rio, 6, 11));
-      if (h > 12) c.lerp(C.pedra, THREE.MathUtils.smoothstep(h, 12, 22));
+      if (h > 12) c.lerp(C.pedra, THREE.MathUtils.smoothstep(h, 12, 24));
+      if (h > 30) c.lerp(C.neve, THREE.MathUtils.smoothstep(h, 30, 40));   // picos nevados
       c.multiplyScalar(1.3);   // compensa a textura de detalhe (que escurece um pouco)
       cores.set([c.r, c.g, c.b], i * 3);
     }
