@@ -9,15 +9,22 @@ import { ligarTecladoMouse } from '../game/input';
 import { iniciarAutoSave, salvarAgora } from '../state/save';
 import { useJogo, type ModoCamera } from '../state/store';
 import { cores, Botao } from '../ui/tema';
+import * as THREE from 'three';
+import { deitarTela } from '../ui/Orientacao';
 
 export function Jogo() {
   const { irPara, config, setConfig } = useJogo();
   const [pausado, setPausado] = useState(false);
   const [aviso, setAviso] = useState('');
+  const [carregado, setCarregado] = useState(0);
 
   useEffect(() => {
     const desligaSave = iniciarAutoSave();   // salva sozinho a cada 30s e ao sair/minimizar
     const desligaTeclas = ligarTecladoMouse();
+    deitarTela();
+    const m = THREE.DefaultLoadingManager;
+    m.onProgress = (_u, feitos, total) => setCarregado(Math.round((feitos / Math.max(total, 1)) * 100));
+    m.onLoad = () => setCarregado(100);
     return () => { desligaSave(); desligaTeclas(); };
   }, []);
 
@@ -26,12 +33,19 @@ export function Jogo() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Canvas shadows dpr={PRESETS[config.qualidade].dpr} gl={{ antialias: config.qualidade !== 'baixo' }} camera={{ fov: 60, near: 0.1, far: PRESETS[config.qualidade].distancia, position: [0, 5, 8] }}>
+      <Canvas shadows dpr={PRESETS[config.qualidade].dpr} gl={{ antialias: config.qualidade !== 'baixo' }} camera={{ fov: 55, near: 0.1, far: PRESETS[config.qualidade].distancia, position: [0, 5, 8] }}>
         <Mundo />
       </Canvas>
       <HUD onPausar={() => setPausado(true)} />
       {!pausado && <Controles />}
       {!!aviso && <Text style={s.aviso}>{aviso}</Text>}
+      {carregado < 100 && (
+        <View style={s.carregando} pointerEvents="none">
+          <Text style={s.titulo}>SOMBRA DE VILA RICA</Text>
+          <Text style={s.sub}>Carregando o mundo… {carregado}%</Text>
+          <View style={s.barra}><View style={[s.barraCheia, { width: `${carregado}%` }]} /></View>
+        </View>
+      )}
       {pausado && (
         <View style={s.pausa}>
           <Text style={s.titulo}>PAUSA</Text>
@@ -54,5 +68,8 @@ const s = StyleSheet.create({
   pausa: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000b', alignItems: 'center', justifyContent: 'center', gap: 10 },
   titulo: { color: cores.ouro, fontSize: 32, fontWeight: '900' }, sub: { color: cores.textoFraco, marginTop: 8 },
   linha: { flexDirection: 'row', gap: 8 },
+  carregando: { ...StyleSheet.absoluteFillObject, backgroundColor: '#120d08', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  barra: { width: 260, height: 8, borderRadius: 4, backgroundColor: '#000a', overflow: 'hidden' },
+  barraCheia: { height: 8, backgroundColor: cores.ouro },
   aviso: { position: 'absolute', bottom: 160, alignSelf: 'center', color: cores.texto, backgroundColor: '#000a', padding: 8, borderRadius: 8 },
 });

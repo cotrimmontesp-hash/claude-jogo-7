@@ -58,7 +58,7 @@ export interface Config { camera: ModoCamera; volume: number; sensibilidade: num
 
 export const progressoInicial = (heroi: Heroi['id'], modo: ModoJogo): Progresso => ({
   heroi, modo, diasSobrevividos: 0, capitulo: 1, missao: 1, missoesConcluidas: [], posicao: [0, 0, 0],
-  vida: 100, fome: 100, sede: 100, energia: 100, horaDoDia: 20,
+  vida: 100, fome: 100, sede: 100, energia: 100, horaDoDia: 16.5,
   materiais: {}, armas: [{ id: 'faca', nivel: 0 }], armaduras: [],
   equipado: { arma: 'faca' }, escolhas: {}, montarias: [], montado: null, equipMontaria: [],
   skins: [`${heroi}_padrao`], skinAtual: `${heroi}_padrao`, procurado: 0, cla: claInicial(), tempoJogado: 0, salvoEm: 0,

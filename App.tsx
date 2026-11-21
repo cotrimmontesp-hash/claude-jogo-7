@@ -13,6 +13,7 @@ import { Cla } from './src/screens/Cla';
 import { conectar } from './src/net/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Protecao } from './src/ui/Protecao';
+import { Orientacao } from './src/ui/Orientacao';
 
 export default function App() {
   const tela = useJogo((s) => s.tela);
@@ -37,6 +38,7 @@ export default function App() {
       {tela === 'config' && <Config />}
       {tela === 'forja' && <Forja />}
       {tela === 'cla' && <Cla />}
+      <Orientacao />
     </View>
     </Protecao>
   );

@@ -3,16 +3,17 @@ import React from 'react';
 import { Sky } from '@react-three/drei/native';
 import { useJogo } from '../state/store';
 import { PRESETS } from './qualidade';
+import { corNeblina } from './ceu';
 
 export function Graficos() {
   const q = PRESETS[useJogo((s) => s.config.qualidade)];
-  const hora = useJogo((s) => s.progresso?.horaDoDia ?? 12);
+  const hora = useJogo((s) => Math.round((s.progresso?.horaDoDia ?? 12) * 4) / 4); // atualiza a cada 15 min do jogo
   const ang = ((hora - 6) / 12) * Math.PI;
   return (
     <>
       <Sky sunPosition={[Math.cos(ang) * 100, Math.sin(ang) * 100, 30]} turbidity={6} rayleigh={1.5} />
       <hemisphereLight args={['#cfe0ff', '#4a3a28', 0.6]} />
-      <fog attach="fog" args={['#a9b8c8', q.distancia * 0.3, q.distancia]} />
+      <fog attach="fog" args={[corNeblina(hora), q.distancia * 0.35, q.distancia]} />
     </>
   );
 }

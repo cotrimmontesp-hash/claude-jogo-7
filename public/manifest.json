@@ -1,0 +1,9 @@
+{
+  "name": "Sombra de Vila Rica",
+  "short_name": "Vila Rica",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#120d08",
+  "theme_color": "#120d08"
+}
