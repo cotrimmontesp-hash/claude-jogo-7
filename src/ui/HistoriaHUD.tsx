@@ -4,7 +4,7 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useJogo } from '../state/store';
 import { HISTORIA, missaoAtual, useHistoria } from '../game/historia';
 import { useViagem } from '../game/teleporte';
-import { useInterior } from '../game/Interiores';
+import { useInterior, COMERCIANTE, comprar, type Oferta } from '../game/Interiores';
 import { jogadorPos, cameraInfo } from '../game/Mundo';
 import { ILHAS, ilhaDe } from '../game/mapa';
 import { cores } from './tema';
@@ -79,6 +79,8 @@ export function HistoriaHUD() {
       {!!aviso && <View style={s.aviso} pointerEvents="none"><Text style={s.avisoTxt}>{aviso}</Text></View>}
 
       {!!dicaCasa && !fala && <View style={s.dicaCasa} pointerEvents="none"><Text style={s.dicaTxt}>{dicaCasa}</Text></View>}
+
+      <Loja />
 
       {/* diálogo */}
       {fala && (
@@ -158,4 +160,36 @@ const mm = StyleSheet.create({
   nome: { position: 'absolute', width: 60, textAlign: 'center', color: '#fff', fontSize: 6, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
   alvo: { position: 'absolute', color: '#ffd36b', fontSize: 11, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
   eu: { position: 'absolute', color: '#fff', fontSize: 10, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
+});
+
+// Loja do comerciante da casa
+function Loja() {
+  const loja = useInterior((s) => s.loja);
+  const mat = useJogo((s) => s.progresso?.materiais ?? {});
+  const [msg, setMsg] = useState('');
+  if (!loja) return null;
+  const c = COMERCIANTE[loja];
+  const preco = (o: Oferta) => Object.entries(o.preco).map(([k, v]) => `${v} ${k.replace('_', ' ')}`).join(' + ') || 'grátis';
+  return (
+    <View style={lj.caixa}>
+      <Text style={lj.titulo}>💰 {c.nome} — {c.titulo}</Text>
+      <Text style={lj.ouro}>Seu ouro: {mat.ouro ?? 0}   ·   ferro {mat.ferro ?? 0} · couro {mat.couro ?? 0} · madeira {mat.madeira ?? 0}</Text>
+      {c.ofertas.map((o) => (
+        <Pressable key={o.nome} style={lj.item} onPress={() => setMsg(comprar(o))}>
+          <Text style={lj.nome}>{o.nome}</Text><Text style={lj.preco}>{preco(o)}</Text>
+        </Pressable>
+      ))}
+      {!!msg && <Text style={lj.msg}>{msg}</Text>}
+      <Pressable style={[lj.item, { justifyContent: 'center', borderColor: cores.ouro }]} onPress={() => { setMsg(''); useInterior.setState({ loja: null }); }}><Text style={lj.nome}>Fechar</Text></Pressable>
+    </View>
+  );
+}
+const lj = StyleSheet.create({
+  caixa: { position: 'absolute', top: '8%', left: '30%', right: '30%', backgroundColor: '#120d08f0', borderRadius: 12, padding: 10, gap: 5, borderWidth: 2, borderColor: cores.ouro, zIndex: 80 },
+  titulo: { color: cores.ouro, fontWeight: '900', fontSize: 14, textAlign: 'center' },
+  ouro: { color: cores.textoFraco, fontSize: 10, textAlign: 'center', marginBottom: 2 },
+  item: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#2b2117', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: cores.ouroEscuro },
+  nome: { color: cores.texto, fontWeight: '800', fontSize: 12 },
+  preco: { color: '#ffd36b', fontSize: 11, fontWeight: '700' },
+  msg: { color: '#9be15d', fontSize: 11, textAlign: 'center', fontWeight: '800' },
 });

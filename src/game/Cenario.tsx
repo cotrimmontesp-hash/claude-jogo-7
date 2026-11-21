@@ -84,7 +84,7 @@ function gerarLayout() {
   add('cenario/market_yellow', noChao(-34, 30, Math.PI, S)); marca(-34, 30);
   const tiposCasa = ['cenario/home_A_red', 'cenario/home_B_red', 'cenario/home_A_yellow', 'cenario/home_B_blue'];
   const casas = espalhar(rnd, 30, () => { const a = rnd() * Math.PI * 2, d = 32 + rnd() * 70; return [Math.cos(a) * d, Math.sin(a) * d]; },
-    (x, z) => livre(x, z, 9) && altura(x, z) > 1, 17, ocupados);
+    (x, z) => livre(x, z, 11) && altura(x, z) > 1, 23, ocupados);
   casas.forEach(([x, z], i) => add(tiposCasa[i % 4], noChao(x, z, 0, S)));
   // objetos da vila (barris, caixotes, carrinhos)
   for (let i = 0; i < 60; i++) {

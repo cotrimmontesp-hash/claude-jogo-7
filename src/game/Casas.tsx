@@ -11,9 +11,9 @@ import { textura } from './modelos';
 export type TipoCasa = 'terrea' | 'sobrado' | 'venda' | 'oficina' | 'ruina' | 'igreja';
 export interface CasaPos { tipo: TipoCasa; p: [number, number, number]; r: number; s: number }
 
-type Mat = 'parede' | 'telha' | 'madeira' | 'pedra' | 'moldura' | 'vidro';
+type Mat = 'parede' | 'telha' | 'madeira' | 'pedra' | 'moldura' | 'vidro' | 'luz' | 'planta' | 'flor';
 type Partes = Record<Mat, THREE.BufferGeometry[]>;
-const novo = (): Partes => ({ parede: [], telha: [], madeira: [], pedra: [], moldura: [], vidro: [] });
+const novo = (): Partes => ({ parede: [], telha: [], madeira: [], pedra: [], moldura: [], vidro: [], luz: [], planta: [], flor: [] });
 
 // UV em metros (a textura não estica em paredes grandes)
 function uvMundo(g: THREE.BufferGeometry, tile: number) {
@@ -29,7 +29,7 @@ function uvMundo(g: THREE.BufferGeometry, tile: number) {
   return g;
 }
 
-const TILE: Record<Mat, number> = { parede: 2.5, telha: 1.6, madeira: 1.2, pedra: 1.8, moldura: 1, vidro: 1 };
+const TILE: Record<Mat, number> = { parede: 2.5, telha: 1.6, madeira: 1.2, pedra: 1.8, moldura: 1, vidro: 1, luz: 1, planta: 1, flor: 1 };
 
 function caixa(P: Partes, m: Mat, w: number, h: number, d: number, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) {
   const g = new THREE.BoxGeometry(w, h, d);
@@ -52,10 +52,25 @@ function janela(P: Partes, x: number, y: number, z: number, lado: 1 | -1, eixo: 
   put('moldura', e, h, 0.14, w / 2 + e / 2, 0, 0.02);
   put('madeira', w / 2, h, 0.05, -w * 0.82, 0, 0.1);               // venezianas abertas
   put('madeira', w / 2, h, 0.05, w * 0.82, 0, 0.1);
+  if (!alta && lado === 1 && eixo === 'z' && y < 3) {                // floreira com flores na janela da frente
+    put('madeira', w + 0.2, 0.22, 0.32, 0, -h / 2 - 0.3, 0.26);
+    for (let i = 0; i < 5; i++) {
+      put('planta', 0.2, 0.2, 0.2, -0.4 + i * 0.2, -h / 2 - 0.12, 0.26, );
+      if (i % 2 === 0) put('flor', 0.12, 0.12, 0.12, -0.4 + i * 0.2, -h / 2 + 0.0, 0.3);
+    }
+  }
 }
 
 function porta(P: Partes, x: number, z: number, lado: 1 | -1, larg = 1.25, alt = 2.4) {
-  caixa(P, 'madeira', larg, alt, 0.1, x, alt / 2 + 0.55, z - 0.02 * lado);
+  // vão da porta aberta: dá para ver a luz de dentro da casa
+  caixa(P, 'luz', larg, alt, 0.04, x, alt / 2 + 0.55, z + 0.005 * lado);
+  // folha da porta aberta para fora, encostada na parede
+  const th = 1.75, hx = x - larg / 2, dx = Math.cos(th), dz = Math.sin(th) * lado;
+  caixa(P, 'madeira', larg, alt, 0.08, hx + dx * larg / 2, alt / 2 + 0.55, z + 0.05 * lado + dz * larg / 2, 0, -lado * th, 0);
+  // lampião ao lado da porta
+  caixa(P, 'madeira', 0.08, 0.08, 0.4, x + larg / 2 + 0.55, alt + 0.45, z + 0.2 * lado);
+  caixa(P, 'luz', 0.26, 0.34, 0.26, x + larg / 2 + 0.55, alt + 0.2, z + 0.38 * lado);
+  caixa(P, 'madeira', 0.34, 0.06, 0.34, x + larg / 2 + 0.55, alt + 0.4, z + 0.38 * lado);
   caixa(P, 'moldura', larg + 0.36, 0.18, 0.16, x, alt + 0.64, z + 0.02 * lado);
   caixa(P, 'moldura', 0.18, alt, 0.16, x - larg / 2 - 0.09, alt / 2 + 0.55, z + 0.02 * lado);
   caixa(P, 'moldura', 0.18, alt, 0.16, x + larg / 2 + 0.09, alt / 2 + 0.55, z + 0.02 * lado);
@@ -89,8 +104,8 @@ function corpo(P: Partes, W: number, D: number, H: number) {
   caixa(P, 'moldura', W + 0.2, 0.22, D + 0.2, 0, H - 0.05, 0);            // cimalha
 }
 
-function terrea(W = 7, D = 5.5): Partes {
-  const P = novo(), H = 3.6;
+function terrea(W = 9, D = 7): Partes {
+  const P = novo(), H = 4.2;
   corpo(P, W, D, H);
   porta(P, -W * 0.18, D / 2, 1);
   for (const x of [-W * 0.38, W * 0.12, W * 0.36]) janela(P, x, 2.1, D / 2 + 0.01, 1, 'z');
@@ -99,8 +114,8 @@ function terrea(W = 7, D = 5.5): Partes {
   return P;
 }
 
-function sobrado(W = 8, D = 6.5, sacada = true): Partes {
-  const P = novo(), H = 7;
+function sobrado(W = 10, D = 8, sacada = true): Partes {
+  const P = novo(), H = 7.6;
   corpo(P, W, D, H);
   caixa(P, 'moldura', W + 0.1, 0.16, D + 0.1, 0, 3.6, 0);               // friso entre andares
   porta(P, 0, D / 2, 1, 1.4, 2.6);
@@ -120,7 +135,7 @@ function sobrado(W = 8, D = 6.5, sacada = true): Partes {
 }
 
 function oficina(): Partes {
-  const P = terrea(8, 6);
+  const P = terrea(10, 7.5);
   caixa(P, 'pedra', 1.1, 3.2, 1.1, 2.6, 5.6, -1.2);                     // chaminé da forja
   caixa(P, 'madeira', 3.4, 0.12, 2.2, -1.8, 3.0, 4.0, -0.25);            // alpendre
   for (const x of [-3.3, -0.3]) caixa(P, 'madeira', 0.16, 2.6, 0.16, x, 1.6, 5.0);
@@ -170,7 +185,7 @@ function igreja(): Partes {
 }
 
 const MODELOS: Record<TipoCasa, () => Partes> = {
-  terrea: () => terrea(), sobrado: () => sobrado(), venda: () => sobrado(11, 7.5, true), oficina, ruina, igreja,
+  terrea: () => terrea(), sobrado: () => sobrado(), venda: () => sobrado(12.5, 9, true), oficina, ruina, igreja,
 };
 
 const URLS = Object.fromEntries((['parede', 'telha', 'madeira', 'pedra'] as const).flatMap((k) => [[`${k}_cor`, textura(`casa/${k}_cor.jpg`)], [`${k}_nor`, textura(`casa/${k}_nor.jpg`)]])) as Record<string, string>;
@@ -204,6 +219,9 @@ function Tipo({ tipo, lista, tex, sombra }: { tipo: TipoCasa; lista: CasaPos[]; 
       pedra: std({ map: tex.pedra_cor, normalMap: tex.pedra_nor, color: ruina ? new THREE.Color(0.5, 0.5, 0.5) : new THREE.Color(1, 1, 1) }),
       moldura: std({ map: tex.parede_cor, roughness: 0.6, color: ruina ? new THREE.Color(0.25, 0.22, 0.2) : new THREE.Color(1, 1, 1) }),
       vidro: std({ color: '#1d2630', roughness: 0.15, metalness: 0.3 }),
+      luz: new THREE.MeshStandardMaterial({ color: '#3a2412', emissive: new THREE.Color(ruina ? '#000' : '#ff9a45'), emissiveIntensity: ruina ? 0 : 1.4, roughness: 1 }),
+      planta: std({ color: '#3d7a33', roughness: 1 }),
+      flor: std({ color: '#c8324a', roughness: 1, emissive: new THREE.Color('#3a0710'), emissiveIntensity: 0.4 }),
     } as Record<Mat, THREE.MeshStandardMaterial>;
   }, [tex, tipo]);
   const refs = useRef<Partial<Record<Mat, THREE.InstancedMesh | null>>>({});

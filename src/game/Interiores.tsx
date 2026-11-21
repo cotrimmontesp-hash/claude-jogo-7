@@ -15,14 +15,16 @@ import { altura } from './Terreno';
 import { useJogo } from '../state/store';
 import type { Material } from '../data/items';
 import { tocar } from './som';
+import { Personagem3D } from './Personagem3D';
+import { ARMAS, ARMADURAS } from '../data/items';
 
 // ---------- dados das casas do mundo (preenchidos pelo Cenário) ----------
 export const casasMundo: CasaPos[] = [];
 export function registrarCasas(l: CasaPos[]) { casasMundo.length = 0; casasMundo.push(...l); }
 
 const PLANTA: Record<TipoCasa, { W: number; D: number; porta: number }> = {
-  terrea: { W: 7, D: 5.5, porta: -7 * 0.18 }, sobrado: { W: 8, D: 6.5, porta: 0 }, venda: { W: 9, D: 7, porta: 0 },
-  oficina: { W: 8, D: 6, porta: -8 * 0.18 }, ruina: { W: 7, D: 5.5, porta: 0 }, igreja: { W: 10, D: 17, porta: 0 },
+  terrea: { W: 9, D: 7, porta: -9 * 0.18 }, sobrado: { W: 10, D: 8, porta: 0 }, venda: { W: 12.5, D: 9, porta: 0 },
+  oficina: { W: 10, D: 7.5, porta: -10 * 0.18 }, ruina: { W: 7, D: 5.5, porta: 0 }, igreja: { W: 10, D: 17, porta: 0 },
 };
 const paraLocal = (c: CasaPos, x: number, z: number) => {
   const dx = x - c.p[0], dz = z - c.p[2], co = Math.cos(c.r), si = Math.sin(c.r);
@@ -57,8 +59,79 @@ const SALA: Record<TipoCasa, { W: number; D: number; H: number }> = {
   terrea: { W: 10, D: 8, H: 3.6 }, sobrado: { W: 12, D: 9, H: 4.2 }, venda: { W: 12, D: 9, H: 4 },
   oficina: { W: 11, D: 9, H: 4 }, ruina: { W: 10, D: 8, H: 3.6 }, igreja: { W: 12, D: 24, H: 9 },
 };
-interface EstadoInterior { casa: number | null; dica: string; set: (p: Partial<EstadoInterior>) => void }
-export const useInterior = create<EstadoInterior>((set) => ({ casa: null, dica: '', set: (p) => set(p) }));
+interface EstadoInterior { casa: number | null; dica: string; loja: TipoCasa | null; set: (p: Partial<EstadoInterior>) => void }
+export const useInterior = create<EstadoInterior>((set) => ({ casa: null, dica: '', loja: null, set: (p) => set(p) }));
+
+// ---------- comerciantes: cada casa tem um ----------
+type Ganho = { comida?: { fome?: number; sede?: number; vida?: number }; arma?: string; armadura?: string; materiais?: Partial<Record<Material, number>> };
+export interface Oferta { nome: string; preco: Partial<Record<Material, number>>; ganho: Ganho }
+export const COMERCIANTE: Record<TipoCasa, { nome: string; titulo: string; cor: string; ofertas: Oferta[] }> = {
+  terrea: { nome: 'Dona Joana', titulo: 'Quitandeira', cor: '#b5651d', ofertas: [
+    { nome: '🍞 Pão com café', preco: { ouro: 1 }, ganho: { comida: { fome: 40, sede: 30 } } },
+    { nome: '🍲 Feijão tropeiro', preco: { ouro: 2 }, ganho: { comida: { fome: 85, vida: 15 } } },
+    { nome: '💧 Moringa de água', preco: {}, ganho: { comida: { sede: 50 } } },
+    { nome: '💰 Vender 3 couros', preco: { couro: 3 }, ganho: { materiais: { ouro: 2 } } },
+    { nome: '💰 Vender 2 penas', preco: { pena: 2 }, ganho: { materiais: { ouro: 1 } } },
+  ] },
+  sobrado: { nome: 'Seu Bento', titulo: 'Alfaiate e armeiro', cor: '#3b4f73', ofertas: [
+    { nome: '🧢 Capuz de Couro', preco: { ouro: 2, couro: 2 }, ganho: { armadura: 'couro_cabeca' } },
+    { nome: '🦺 Peitoral de Couro', preco: { ouro: 4, couro: 4 }, ganho: { armadura: 'couro_peito' } },
+    { nome: '🧤 Braçadeiras de Couro', preco: { ouro: 2, couro: 2 }, ganho: { armadura: 'couro_bracos' } },
+    { nome: '👢 Grevas de Couro', preco: { ouro: 3, couro: 3 }, ganho: { armadura: 'couro_pernas' } },
+    { nome: '🦺 Peitoral do Caçador', preco: { ouro: 8, couro_grosso: 3, osso: 2 }, ganho: { armadura: 'cacador_peito' } },
+    { nome: '💰 Vender 1 pele de onça', preco: { pele_onca: 1 }, ganho: { materiais: { ouro: 5 } } },
+  ] },
+  venda: { nome: 'Seu Manoel', titulo: 'Taberneiro', cor: '#6b4a2b', ofertas: [
+    { nome: '🍖 Prato do dia', preco: { ouro: 1 }, ganho: { comida: { fome: 60, sede: 40 } } },
+    { nome: '🪵 3 madeiras', preco: { ouro: 1 }, ganho: { materiais: { madeira: 3 } } },
+    { nome: '⛓ 2 ferros', preco: { ouro: 3 }, ganho: { materiais: { ferro: 2 } } },
+    { nome: '🐄 2 couros grossos', preco: { ouro: 3 }, ganho: { materiais: { couro_grosso: 2 } } },
+    { nome: '💰 Vender 2 ossos', preco: { osso: 2 }, ganho: { materiais: { ouro: 1 } } },
+    { nome: '💰 Vender 2 escamas', preco: { escama: 2 }, ganho: { materiais: { ouro: 2 } } },
+  ] },
+  oficina: { nome: 'Mestre Joaquim', titulo: 'Ferreiro', cor: '#4a4040', ofertas: [
+    { nome: '⚔ Espada de Ferro', preco: { ouro: 3, ferro: 3 }, ganho: { arma: 'espada_ferro' } },
+    { nome: '🪓 Machado de Lenhador', preco: { ouro: 3, ferro: 2, madeira: 2 }, ganho: { arma: 'machado_lenhador' } },
+    { nome: '🔱 Lança de Caça', preco: { ouro: 2, madeira: 3 }, ganho: { arma: 'lanca_caca' } },
+    { nome: '🔨 Maça de Ferro', preco: { ouro: 5, ferro: 4 }, ganho: { arma: 'maca_ferro' } },
+    { nome: '🗡 Sabre de Cavalaria', preco: { ouro: 9, ferro: 5 }, ganho: { arma: 'sabre_cavalaria' } },
+    { nome: '💰 Vender 2 chifres', preco: { chifre: 2 }, ganho: { materiais: { ouro: 2 } } },
+  ] },
+  ruina: { nome: '', titulo: '', cor: '#000', ofertas: [] },
+  igreja: { nome: 'Padre Antônio', titulo: 'Vigário', cor: '#222', ofertas: [
+    { nome: '🙏 Bênção (vida cheia)', preco: { ouro: 1 }, ganho: { comida: { vida: 100 } } },
+    { nome: '🏹 Arco Simples', preco: { ouro: 3, madeira: 3 }, ganho: { arma: 'arco_simples' } },
+    { nome: '🕯 Doar 1 ouro aos pobres', preco: { ouro: 1 }, ganho: { comida: { fome: 10 } } },
+  ] },
+};
+export function comprar(o: Oferta): string {
+  const { atualizar, progresso: p } = useJogo.getState(); if (!p) return '';
+  const falta = Object.entries(o.preco).find(([k, v]) => (p.materiais[k as Material] ?? 0) < (v ?? 0));
+  if (falta) return `Falta ${falta[1]} ${falta[0].replace('_', ' ')}`;
+  atualizar((q) => {
+    const mat = { ...q.materiais };
+    for (const [k, v] of Object.entries(o.preco)) mat[k as Material] = (mat[k as Material] ?? 0) - (v ?? 0);
+    for (const [k, v] of Object.entries(o.ganho.materiais ?? {})) mat[k as Material] = (mat[k as Material] ?? 0) + (v ?? 0);
+    const out: any = { materiais: mat };
+    const c = o.ganho.comida;
+    if (c) { out.fome = Math.min(100, q.fome + (c.fome ?? 0)); out.sede = Math.min(100, q.sede + (c.sede ?? 0)); out.vida = Math.min(100, q.vida + (c.vida ?? 0)); }
+    if (o.ganho.arma) {
+      out.armas = q.armas.some((a) => a.id === o.ganho.arma) ? q.armas : [...q.armas, { id: o.ganho.arma, nivel: 0 }];
+      out.equipado = { ...q.equipado, arma: o.ganho.arma };
+    }
+    if (o.ganho.armadura) {
+      const def = ARMADURAS.find((a) => a.id === o.ganho.armadura);
+      out.armaduras = q.armaduras.some((a) => a.id === o.ganho.armadura) ? q.armaduras : [...q.armaduras, { id: o.ganho.armadura, nivel: 0 }];
+      if (def) out.equipado = { ...q.equipado, [def.slot]: def.id };
+    }
+    return out;
+  });
+  tocar('missao');
+  const nomeArma = o.ganho.arma ? ARMAS.find((a) => a.id === o.ganho.arma)?.nome : null;
+  return nomeArma ? `✔ ${nomeArma} equipada!` : o.ganho.armadura ? '✔ Armadura equipada!' : '✔ Feito!';
+}
+// onde fica o comerciante dentro de cada cômodo
+const posComerciante = (t: TipoCasa): [number, number] => t === 'igreja' ? [2.6, -SALA.igreja.D / 2 + 3.4] : [-SALA[t].W / 2 + 1.3, SALA[t].D / 2 - 2.4];
 export const dentroDeCasa = () => useInterior.getState().casa !== null;
 /** Limites do cômodo (o jogador não sai pelas paredes). */
 export function limitarInterior(pos: THREE.Vector3) {
@@ -84,16 +157,18 @@ function sair() {
   const i = useInterior.getState().casa; if (i === null) return;
   const c = casasMundo[i]; const [x, z] = portaDe(c, 1.8);
   pedidoTeleporte.alvo = new THREE.Vector3(x, altura(x, z), z);
-  useInterior.setState({ casa: null, dica: '' }); tocar('passo');
+  useInterior.setState({ casa: null, dica: '', loja: null }); tocar('passo');
 }
 
 // itens que se usam dentro de casa
-type Uso = 'sair' | 'bau' | 'comer' | 'dormir' | 'forja' | 'rezar';
+type Uso = 'sair' | 'bau' | 'comer' | 'dormir' | 'forja' | 'rezar' | 'loja';
 interface Ponto { uso: Uso; p: [number, number]; texto: string }
 function pontosDa(tipo: TipoCasa): Ponto[] {
   const s = SALA[tipo]; const sair: Ponto = { uso: 'sair', p: [0, s.D / 2 - 0.6], texto: '🚪 USAR: sair' };
-  if (tipo === 'igreja') return [sair, { uso: 'rezar', p: [0, -s.D / 2 + 2.5], texto: '🙏 USAR: rezar no altar (recupera toda a vida)' }];
-  const base: Ponto[] = [sair, { uso: 'bau', p: [s.W / 2 - 1.2, -s.D / 2 + 1.2], texto: '🧰 USAR: abrir o baú' }, { uso: 'comer', p: [0, 0], texto: '🍞 USAR: comer e beber na mesa' }];
+  const [cx, cz] = posComerciante(tipo); const co = COMERCIANTE[tipo];
+  const loja: Ponto = { uso: 'loja', p: [cx + 1.3, cz], texto: `💰 USAR: comprar com ${co.nome} (${co.titulo})` };
+  if (tipo === 'igreja') return [sair, loja, { uso: 'rezar', p: [0, -s.D / 2 + 2.5], texto: '🙏 USAR: rezar no altar (recupera toda a vida)' }];
+  const base: Ponto[] = [sair, loja, { uso: 'bau', p: [s.W / 2 - 1.2, -s.D / 2 + 1.2], texto: '🧰 USAR: abrir o baú' }, { uso: 'comer', p: [0, 0], texto: '🍞 USAR: comer e beber na mesa' }];
   if (tipo === 'oficina') base.push({ uso: 'forja', p: [-s.W / 2 + 1.6, -s.D / 2 + 1.6], texto: '⚒ USAR: bigorna (melhorar arma e armadura)' });
   else base.push({ uso: 'dormir', p: [-s.W / 2 + 1.4, -s.D / 2 + 1.6], texto: '🛏 USAR: dormir até de manhã' });
   return base;
@@ -102,6 +177,7 @@ function pontosDa(tipo: TipoCasa): Ponto[] {
 function usar(uso: Uso, casa: number) {
   const { atualizar, irPara } = useJogo.getState();
   if (uso === 'sair') return sair();
+  if (uso === 'loja') { useInterior.setState({ loja: casasMundo[casa].tipo, dica: '' }); if (typeof document !== 'undefined') document.exitPointerLock?.(); return; }
   if (uso === 'comer') { atualizar((p) => ({ fome: Math.min(100, p.fome + 35), sede: Math.min(100, p.sede + 45) })); useInterior.setState({ dica: '😋 Você comeu e bebeu.' }); return; }
   if (uso === 'dormir') { atualizar((p) => ({ horaDoDia: 6.5, energia: 100, vida: Math.min(100, p.vida + 40), diasSobrevividos: p.diasSobrevividos + (p.horaDoDia > 6.5 ? 1 : 0) })); useInterior.setState({ dica: '🌅 Você dormiu. Já é de manhã!' }); return; }
   if (uso === 'rezar') { atualizar(() => ({ vida: 100, energia: 100 })); useInterior.setState({ dica: '✨ Você se sente renovado.' }); return; }
@@ -111,6 +187,7 @@ function usar(uso: Uso, casa: number) {
     if (p?.escolhas[chave]) { useInterior.setState({ dica: 'O baú está vazio.' }); return; }
     const opcoes: Material[] = ['madeira', 'ferro', 'couro', 'osso', 'ouro', 'pena'];
     const ganhos: Partial<Record<Material, number>> = {};
+    ganhos.ouro = 1 + (casa % 3);
     for (let k = 0; k < 2; k++) { const m = opcoes[(casa * 7 + k * 3) % opcoes.length]; ganhos[m] = (ganhos[m] ?? 0) + 1 + ((casa + k) % 3); }
     atualizar((q) => { const mm = { ...q.materiais }; for (const [k, v] of Object.entries(ganhos)) mm[k as Material] = (mm[k as Material] ?? 0) + (v ?? 0); return { materiais: mm, escolhas: { ...q.escolhas, [chave]: 'aberto' } }; });
     useInterior.setState({ dica: '🧰 Achou: ' + Object.entries(ganhos).map(([k, v]) => `${v} ${k}`).join(', ') });
@@ -191,6 +268,14 @@ export function Interior() {
       {/* janelas com luz entrando */}
       {[-W / 4, W / 4].map((x, i) => <mesh key={i} position={[x, H * 0.55, -D / 2 + 0.03]}><planeGeometry args={[1.1, 1.3]} /><meshBasicMaterial color="#cfe6ff" /></mesh>)}
       <hemisphereLight args={['#ffe9c9', '#4a3a2a', 0.6]} />
+      {/* comerciante atrás do balcão */}
+      {(() => { const [cx, cz] = posComerciante(tipo); return <group>
+        <group position={[cx, 0, cz]} rotation={[0, Math.PI / 2, 0]}><Personagem3D arquivo={casa % 2 ? 'mixamo/tome' : 'mixamo/ines'} anim="Idle" cor={COMERCIANTE[tipo].cor} sombra={false} /></group>
+        <Caixa p={[cx + 0.75, 0.55, cz]} s={[0.6, 1.1, 2.2]} m={mats.madeira} />
+        <Caixa p={[cx + 0.75, 1.13, cz]} s={[0.75, 0.06, 2.35]} m={mats.escura} />
+        <mesh position={[cx + 0.7, 1.25, cz - 0.6]}><cylinderGeometry args={[0.12, 0.12, 0.2, 10]} /><primitive object={mats.ouro} attach="material" /></mesh>
+        <pointLight position={[cx + 0.8, 2.4, cz]} color="#ffcf8a" intensity={4} distance={6} />
+      </group>; })()}
 
       {igreja ? <>
         {Array.from({ length: 6 }, (_, i) => [-2.6, 2.6].map((x) => <Caixa key={`${i}${x}`} p={[x, 0.45, -D / 2 + 6 + i * 2.6]} s={[3.6, 0.9, 0.7]} m={mats.madeira} />))}
