@@ -52,7 +52,7 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
       const rio = distRio(x, z); if (rio < 11) c.lerp(C.areia, 1 - THREE.MathUtils.smoothstep(rio, 6, 11));
       if (h > 12) c.lerp(C.pedra, THREE.MathUtils.smoothstep(h, 12, 24));
       if (h > 30) c.lerp(C.neve, THREE.MathUtils.smoothstep(h, 30, 40));   // picos nevados
-      c.multiplyScalar(1.3);   // compensa a textura de detalhe (que escurece um pouco)
+      c.multiplyScalar(1.12);   // compensa a textura de detalhe (que escurece um pouco)
       cores.set([c.r, c.g, c.b], i * 3);
     }
     g.setAttribute('color', new THREE.BufferAttribute(cores, 3));
@@ -62,7 +62,7 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
 
   // textura de detalhe (folhinhas de grama/terra) repetida pelo chão
   const detalhe = useTexture(textura('grama_detalhe.jpg'));
-  useLayoutEffect(() => { detalhe.wrapS = detalhe.wrapT = THREE.RepeatWrapping; detalhe.repeat.set(70, 70); detalhe.anisotropy = 8; detalhe.colorSpace = THREE.SRGBColorSpace; detalhe.needsUpdate = true; }, [detalhe]);
+  useLayoutEffect(() => { detalhe.wrapS = detalhe.wrapT = THREE.RepeatWrapping; detalhe.repeat.set(110, 110); detalhe.anisotropy = 8; detalhe.colorSpace = THREE.SRGBColorSpace; detalhe.needsUpdate = true; }, [detalhe]);
   return (
     <mesh geometry={geo} receiveShadow>
       <meshStandardMaterial vertexColors map={detalhe} roughness={0.95} metalness={0} />

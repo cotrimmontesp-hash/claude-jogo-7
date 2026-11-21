@@ -52,9 +52,11 @@ export function Grama({ quantidade }: { quantidade: number }) {
     // tufo: 3 lâminas cruzadas, mais finas no topo
     const g = new THREE.BufferGeometry();
     const v: number[] = [], uv: number[] = [];
-    for (let k = 0; k < 3; k++) {
-      const a = (k / 3) * Math.PI, c = Math.cos(a) * 0.09, s = Math.sin(a) * 0.09;
-      v.push(-c, 0, -s, c, 0, s, 0, 0.75, 0);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2, ox = Math.cos(a) * 0.07, oz = Math.sin(a) * 0.07;
+      const px = -Math.sin(a) * 0.018, pz = Math.cos(a) * 0.018;            // largura do fio
+      const inc = 0.12 + (k % 2) * 0.08;                                      // fio inclinado para fora
+      v.push(ox - px, 0, oz - pz, ox + px, 0, oz + pz, ox + Math.cos(a) * inc, 0.42 + (k % 3) * 0.08, oz + Math.sin(a) * inc);
       uv.push(0, 0, 1, 0, 0.5, 1);
     }
     g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
@@ -67,12 +69,12 @@ export function Grama({ quantidade }: { quantidade: number }) {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uTempo = vento.uniform;
       sh.vertexShader = 'uniform float uTempo;\nvarying float vAlt;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-        vAlt = position.y / 0.75;
+        vAlt = clamp(position.y / 0.55, 0.0, 1.0);
         vec2 b = vec2(instanceMatrix[3].x, instanceMatrix[3].z);
         float o = sin(uTempo * 2.2 + b.x * 0.35 + b.y * 0.27) * 0.5 + sin(uTempo * 4.0 + b.x) * 0.15;
-        transformed.x += o * 0.22 * vAlt * vAlt; transformed.z += o * 0.12 * vAlt * vAlt;`);
+        transformed.x += o * 0.12 * vAlt * vAlt; transformed.z += o * 0.07 * vAlt * vAlt;`);
       // base mais escura, ponta mais clara (dá volume)
-      sh.fragmentShader = 'varying float vAlt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= mix(0.45, 1.15, vAlt);');
+      sh.fragmentShader = 'varying float vAlt;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb *= mix(0.72, 1.12, vAlt);');
     };
     return m;
   }, []);
@@ -82,7 +84,7 @@ export function Grama({ quantidade }: { quantidade: number }) {
     if (centro.current.distanceTo(jogadorPos) < 10) return;      // só redistribui quando o jogador se afasta
     centro.current.copy(jogadorPos);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), cor = new THREE.Color();
-    const base = new THREE.Color('#6f9a3e'), clara = new THREE.Color('#a9c45a'), seca = new THREE.Color('#b9a45a');
+    const base = new THREE.Color('#7fa646'), clara = new THREE.Color('#a8c860'), seca = new THREE.Color('#c2ad66');
     // grade fixa no mundo com variação por "hash": a grama não muda de lugar quando você anda
     const passo = (RAIO * 2) / Math.sqrt(quantidade);
     const cx = centro.current.x, cz = centro.current.z;
@@ -96,7 +98,7 @@ export function Grama({ quantidade }: { quantidade: number }) {
         if (distEstrada(x, z) < 2.5 || distRio(x, z) < 7 || Math.hypot(x, z) < 12 || f1 * f2 > 0.7) continue;
         p.set(x, altura(x, z) - 0.05, z);
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), f2 * 6.28);
-        const tam = 0.7 + f1 * 1.0; s.set(tam, tam * (0.8 + f2 * 0.6), tam);
+        const tam = 0.6 + f1 * 0.6; s.set(tam, tam * (0.7 + f2 * 0.5), tam);
         im.setMatrixAt(n, m.compose(p, q, s));
         im.setColorAt(n, cor.copy(base).lerp(f1 > 0.85 ? seca : clara, f2 * 0.7));
         n++;
