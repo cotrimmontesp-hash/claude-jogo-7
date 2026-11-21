@@ -95,8 +95,9 @@ export function Grama({ quantidade }: { quantidade: number }) {
         const hs2 = Math.sin(gx * 39.346 + gz * 11.135) * 24634.6345, f2 = hs2 - Math.floor(hs2);
         const x = (gx + f1) * passo, z = (gz + f2) * passo;
         if (Math.hypot(x - cx, z - cz) > RAIO) continue;
-        if (distEstrada(x, z) < 2.5 || distRio(x, z) < 7 || Math.hypot(x, z) < 12 || f1 * f2 > 0.7) continue;
-        p.set(x, altura(x, z) - 0.05, z);
+        const hz = altura(x, z);
+        if (hz < 0.6 || distEstrada(x, z) < 2.5 || distRio(x, z) < 7 || Math.hypot(x, z) < 23 || f1 * f2 > 0.7) continue;
+        p.set(x, hz - 0.05, z);
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), f2 * 6.28);
         const tam = 0.6 + f1 * 0.6; s.set(tam, tam * (0.7 + f2 * 0.5), tam);
         im.setMatrixAt(n, m.compose(p, q, s));
@@ -115,11 +116,11 @@ export function Grama({ quantidade }: { quantidade: number }) {
 export function Agua() {
   const normal = useTexture(textura('agua_normal.jpg'));
   const mat = useRef<THREE.MeshStandardMaterial>(null);
-  useLayoutEffect(() => { normal.wrapS = normal.wrapT = THREE.RepeatWrapping; normal.repeat.set(6, 60); }, [normal]);
+  useLayoutEffect(() => { normal.wrapS = normal.wrapT = THREE.RepeatWrapping; normal.repeat.set(220, 220); }, [normal]);
   useFrame((_, dt) => { normal.offset.y += dt * 0.02; normal.offset.x += dt * 0.004; });
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[70, ALTURA_AGUA, 0]} receiveShadow>
-      <planeGeometry args={[40, TAM_MUNDO, 1, 1]} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, ALTURA_AGUA, 0]} receiveShadow>
+      <planeGeometry args={[TAM_MUNDO * 2.2, TAM_MUNDO * 2.2, 1, 1]} />
       <meshStandardMaterial ref={mat} color="#2f6f8f" normalMap={normal} normalScale={new THREE.Vector2(0.6, 0.6)}
         roughness={0.05} metalness={0.6} transparent opacity={0.86} envMapIntensity={1.4} />
     </mesh>
@@ -150,7 +151,7 @@ export function Particulas() {
     for (let i = 0; i < N; i++) {
       const x = jogadorPos.x + base[i * 3] * 50 + Math.sin(t * 0.3 + i) * 1.5;
       const z = jogadorPos.z + base[i * 3 + 2] * 50 + Math.cos(t * 0.27 + i) * 1.5;
-      pos.setXYZ(i, x, altura(x, z) + 0.6 + (base[i * 3 + 1] + 0.5) * 3 + Math.sin(t + i) * 0.4, z);
+      pos.setXYZ(i, x, Math.max(altura(x, z), ALTURA_AGUA) + 0.6 + (base[i * 3 + 1] + 0.5) * 3 + Math.sin(t + i) * 0.4, z);
     }
     pos.needsUpdate = true;
   });

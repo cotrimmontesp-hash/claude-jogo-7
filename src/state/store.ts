@@ -58,7 +58,7 @@ export const claInicial = (): EstadoCla => ({
 export interface Config { camera: ModoCamera; volume: number; sensibilidade: number; vozAtiva: boolean; qualidade: Qualidade; autoQualidade?: boolean; }
 
 export const progressoInicial = (heroi: Heroi['id'], modo: ModoJogo): Progresso => ({
-  heroi, modo, diasSobrevividos: 0, capitulo: 1, missao: 1, missoesConcluidas: [], posicao: [0, 0, 0],
+  heroi, modo, diasSobrevividos: 0, capitulo: 1, missao: 1, missoesConcluidas: [], posicao: [150, 0, 160],   // começa na aldeia de Inês
   vida: 100, fome: 100, sede: 100, energia: 100, horaDoDia: 17.2,
   materiais: {}, armas: [{ id: 'faca', nivel: 0 }], armaduras: [],
   equipado: { arma: 'faca' }, escolhas: {}, montarias: [], montado: null, equipMontaria: [],

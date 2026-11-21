@@ -11,6 +11,7 @@ import { PRESETS } from './qualidade';
 import { aplicarVento } from './Efeitos';
 import { Floresta } from './Arvores';
 import { Casas, type CasaPos, type TipoCasa } from './Casas';
+import { ILHAS, LUGAR } from './mapa';
 
 export interface Transf { p: [number, number, number]; r: number; s: number }
 
@@ -48,87 +49,133 @@ function ParteInstanciada({ geo, mat, m, lista, sombra }: { geo: THREE.BufferGeo
 const noChao = (x: number, z: number, r: number, s: number, afundar = 0.15): Transf => ({ p: [x, altura(x, z) - afundar, z], r, s });
 const livre = (x: number, z: number, folga: number) => distEstrada(x, z) > folga && distRio(x, z) > folga + 4;
 
-export const REFUGIO: [number, number] = [-82, -72];   // base do clã
-export const CASAS_EM_CHAMAS: [number, number][] = [[24, 18], [-26, 22], [30, -16]];
+export const REFUGIO: [number, number] = [ILHAS[1].centro[0], ILHAS[1].centro[1]];   // base do seu clã (ilha própria)
+const [AX, AZ] = LUGAR.aldeia;
+export const CASAS_EM_CHAMAS: [number, number][] = [[AX + 6, AZ - 4], [AX - 12, AZ + 8], [AX + 14, AZ + 14], [AX - 4, AZ + 22]];
+
+// posições com distância mínima entre si (casas mais espaçadas)
+function espalhar(rnd: () => number, n: number, gerar: () => [number, number], ok: (x: number, z: number) => boolean, minDist: number, ocupados: [number, number][]) {
+  const out: [number, number][] = [];
+  for (let t = 0; t < n * 30 && out.length < n; t++) {
+    const [x, z] = gerar();
+    if (!ok(x, z) || ocupados.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < minDist)) continue;
+    out.push([x, z]); ocupados.push([x, z]);
+  }
+  return out;
+}
+
+export const CAIS = ILHAS.map((i) => ({ ilha: i.id, nome: i.nome, pos: i.cais }));
 
 function gerarLayout() {
   const rnd = semente(1789);
   const L: Record<string, Transf[]> = {};
   const add = (k: string, t: Transf) => (L[k] ??= []).push(t);
   const S = ESCALA.cenario;
+  const ocupados: [number, number][] = [];
+  const marca = (x: number, z: number) => ocupados.push([x, z]);
 
-  // Aldeia: praça com poço, igreja ao norte, comércio ao redor
-  add('cenario/well_red', noChao(0, 0, 0, S));
-  add('cenario/church_red', noChao(-2, -30, 0, S * 1.25));
-  add('cenario/tavern_red', noChao(-20, -8, Math.PI / 2, S));
-  add('cenario/blacksmith_red', noChao(20, -6, -Math.PI / 2, S));
-  add('cenario/market_yellow', noChao(-6, 18, Math.PI, S));
-  add('cenario/tower_A_red', noChao(-40, -40, 0, S));
+  // ===== Vila Rica: praça calçada com poço, igreja ao norte, venda, oficina e casas espaçadas =====
+  add('cenario/well_red', noChao(0, 0, 0, S)); marca(0, 0);
+  add('cenario/church_red', noChao(0, -42, 0, S * 1.25)); marca(0, -42); marca(0, -34);
+  add('cenario/tavern_red', noChao(-30, -6, Math.PI / 2, S)); marca(-30, -6);
+  add('cenario/blacksmith_red', noChao(30, -4, -Math.PI / 2, S)); marca(30, -4);
+  add('cenario/market_yellow', noChao(-8, 30, Math.PI, S)); marca(-8, 30);
+  add('cenario/market_yellow', noChao(-34, 30, Math.PI, S)); marca(-34, 30);
   const tiposCasa = ['cenario/home_A_red', 'cenario/home_B_red', 'cenario/home_A_yellow', 'cenario/home_B_blue'];
-  for (let i = 0; i < 34; i++) {
-    const a = rnd() * Math.PI * 2, d = 24 + rnd() * 26, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (!livre(x, z, 7) || Math.hypot(x + 2, z + 30) < 12) continue;
-    const emChamas = CASAS_EM_CHAMAS.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < 8);
-    add(emChamas ? 'cenario/destroyed' : tiposCasa[i % 4], noChao(x, z, -a + Math.PI / 2 + (rnd() - 0.5) * 0.4, S * (0.9 + rnd() * 0.25)));
-  }
-  CASAS_EM_CHAMAS.forEach(([x, z]) => add('cenario/destroyed', noChao(x, z, rnd() * 6, S)));
-  // objetos da vila
-  for (let i = 0; i < 40; i++) {
-    const a = rnd() * Math.PI * 2, d = 6 + rnd() * 40, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (!livre(x, z, 3)) continue;
+  const casas = espalhar(rnd, 30, () => { const a = rnd() * Math.PI * 2, d = 32 + rnd() * 70; return [Math.cos(a) * d, Math.sin(a) * d]; },
+    (x, z) => livre(x, z, 9) && altura(x, z) > 1, 17, ocupados);
+  casas.forEach(([x, z], i) => add(tiposCasa[i % 4], noChao(x, z, 0, S)));
+  // objetos da vila (barris, caixotes, carrinhos)
+  for (let i = 0; i < 60; i++) {
+    const a = rnd() * Math.PI * 2, d = 8 + rnd() * 95, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (!livre(x, z, 3) || ocupados.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 6)) continue;
     add(['natureza/barrel', 'natureza/crate_A_big', 'natureza/sack', 'natureza/crate_B_small', 'natureza/wheelbarrow', 'natureza/bucket_water'][i % 6], noChao(x, z, rnd() * 6, ESCALA.objeto, 0));
   }
-  // cercas de madeira na estrada de entrada
-  for (let z = 50; z < 110; z += 6.5) { const x = Math.sin(z * 0.025) * 18 + 6; add('natureza/fence_wood_straight', noChao(x + 1.5, z, 0, ESCALA.objeto * 1.2, 0)); add('natureza/fence_wood_straight', noChao(x + 12, z, 0, ESCALA.objeto * 1.2, 0)); }
+  // cercas na estrada de entrada (sul)
+  for (let z = 110; z < 200; z += 6.5) { const x = Math.sin(z * 0.025) * 18 + 6; add('natureza/fence_wood_straight', noChao(x - 4, z, 0, ESCALA.objeto * 1.2, 0)); add('natureza/fence_wood_straight', noChao(x + 16, z, 0, ESCALA.objeto * 1.2, 0)); }
 
-  // Fazenda e moinhos
-  add('cenario/windmill_red', noChao(-62, 44, 0.6, S * 1.3));
-  add('cenario/home_B_red', noChao(-78, 38, 0.9, S));
-  add('cenario/watermill_red', noChao(57, 32, -Math.PI / 2, S * 1.2));
-  add('cenario/lumbermill_red', noChao(-30, 92, 0.3, S));
-  add('cenario/mine_red', noChao(105, -110, -0.8, S * 1.4));
-  add('cenario/castle_blue', noChao(10, -150, 0, S * 2.4));              // sede do Conselho de Ferro ao longe
-  add('cenario/tower_B_red', noChao(40, -125, 0.4, S * 1.2));
-  add('cenario/barracks_blue', noChao(-15, -128, 0.2, S * 1.1));
+  // ===== Aldeia de Inês (queimada no Capítulo 1) =====
+  CASAS_EM_CHAMAS.forEach(([x, z]) => { add('cenario/destroyed', noChao(x, z, rnd() * 6, S)); marca(x, z); });
+  espalhar(rnd, 3, () => [AX + (rnd() - 0.5) * 50, AZ + (rnd() - 0.5) * 50], (x, z) => livre(x, z, 6) && altura(x, z) > 1, 15, ocupados)
+    .forEach(([x, z]) => add('cenario/home_A_yellow', noChao(x, z, 0, S)));
 
-  // Refúgio do Clã: muralha em anel, quartel, tendas, armas, bandeiras
-  const [rx, rz] = REFUGIO;
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * Math.PI * 2, x = rx + Math.cos(a) * 19, z = rz + Math.sin(a) * 19;
-    add(i === 4 ? 'natureza/wall_straight_gate' : 'natureza/wall_straight', noChao(x, z, -a + Math.PI / 2, S * 1.25, 0.3));
+  // ===== Fazenda, moinhos, serraria =====
+  const [FX, FZ] = LUGAR.fazenda;
+  add('cenario/windmill_red', noChao(FX, FZ, 0.6, S * 1.3)); marca(FX, FZ);
+  add('cenario/home_B_red', noChao(FX - 18, FZ - 8, 0.9, S)); marca(FX - 18, FZ - 8);
+  add('cenario/watermill_red', noChao(LUGAR.rio[0] - 14, LUGAR.rio[1] - 30, -Math.PI / 2, S * 1.2));
+  add('cenario/lumbermill_red', noChao(-60, 150, 0.3, S)); marca(-60, 150);
+
+  // ===== Serra: mosteiro da Irmandade da Lanterna =====
+  const [MX, MZ] = LUGAR.mosteiro;
+  add('cenario/tower_B_red', noChao(MX, MZ, 0, S * 1.3)); add('cenario/tower_A_red', noChao(MX + 12, MZ + 6, 0, S));
+  add('cenario/barracks_blue', noChao(MX - 12, MZ + 4, 0.3, S)); marca(MX, MZ);
+  for (let i = 0; i < 4; i++) add('natureza/flag_blue', noChao(MX - 8 + i * 6, MZ + 14, 0, ESCALA.objeto * 3, 0));
+
+  // ===== Minas e quartel do Conselho na ilha principal =====
+  add('cenario/mine_red', noChao(LUGAR.minas[0], LUGAR.minas[1], -0.8, S * 1.5)); marca(LUGAR.minas[0], LUGAR.minas[1]);
+  add('cenario/tower_A_red', noChao(LUGAR.minas[0] - 20, LUGAR.minas[1] + 12, 0, S));
+  add('cenario/barracks_blue', noChao(LUGAR.quartel[0], LUGAR.quartel[1], 0.2, S * 1.1)); marca(LUGAR.quartel[0], LUGAR.quartel[1]);
+  for (let i = 0; i < 3; i++) add('natureza/flag_red', noChao(LUGAR.quartel[0] - 8 + i * 8, LUGAR.quartel[1] + 10, 0, ESCALA.objeto * 3, 0));
+
+  // ===== Cais com barcos em todas as ilhas =====
+  for (const c of CAIS) {
+    const [x, z] = c.pos, ilha = ILHAS.find((i) => i.id === c.ilha)!;
+    const ang = Math.atan2(x - ilha.centro[0], z - ilha.centro[1]);
+    for (let k = 0; k < 4; k++) add('natureza/pallet', { p: [x + Math.sin(ang) * k * 1.6, 0.1, z + Math.cos(ang) * k * 1.6], r: ang, s: ESCALA.objeto * 2.2 });
+    add('natureza/barrel', noChao(x - Math.cos(ang) * 3, z + Math.sin(ang) * 3, 0, ESCALA.objeto, 0));
+    marca(x, z);
   }
-  add('cenario/barracks_blue', noChao(rx, rz - 8, 0, S));
-  add('cenario/tower_A_red', noChao(rx - 12, rz + 6, 0, S * 0.9));
-  add('cenario/blacksmith_red', noChao(rx + 10, rz - 2, -Math.PI / 2, S * 0.9));
-  for (let i = 0; i < 6; i++) add('natureza/tent', noChao(rx - 8 + (i % 3) * 7, rz + 6 + Math.floor(i / 3) * 6, rnd() * 6, ESCALA.objeto * 1.4, 0));
-  for (let i = 0; i < 4; i++) add('natureza/weaponrack', noChao(rx + 4 + i * 1.8, rz + 3, 0, ESCALA.objeto * 1.3, 0));
-  for (let i = 0; i < 4; i++) add('natureza/flag_blue', noChao(rx + Math.cos(i * 1.57 + 0.78) * 15, rz + Math.sin(i * 1.57 + 0.78) * 15, 0, ESCALA.objeto * 3, 0));
-  add('natureza/resource_lumber', noChao(rx + 6, rz + 10, 0.5, ESCALA.objeto, 0));
 
-  // Floresta
+  // ===== Ilha do seu clã: Refúgio da Lanterna =====
+  const [rx, rz] = REFUGIO;
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2, x = rx + Math.cos(a) * 26, z = rz + Math.sin(a) * 26;
+    add(i === 2 ? 'natureza/wall_straight_gate' : 'natureza/wall_straight', noChao(x, z, -a + Math.PI / 2, S * 1.35, 0.3));
+  }
+  add('cenario/barracks_blue', noChao(rx, rz - 10, 0, S)); add('cenario/tower_A_red', noChao(rx - 15, rz + 8, 0, S * 0.9));
+  add('cenario/tower_A_red', noChao(rx + 15, rz + 8, 0, S * 0.9)); add('cenario/blacksmith_red', noChao(rx + 12, rz - 4, -Math.PI / 2, S * 0.9));
+  for (let i = 0; i < 6; i++) add('natureza/tent', noChao(rx - 9 + (i % 3) * 8, rz + 8 + Math.floor(i / 3) * 7, rnd() * 6, ESCALA.objeto * 1.4, 0));
+  for (let i = 0; i < 4; i++) add('natureza/weaponrack', noChao(rx + 3 + i * 1.8, rz + 3, 0, ESCALA.objeto * 1.3, 0));
+  for (let i = 0; i < 6; i++) add('natureza/flag_blue', noChao(rx + Math.cos(i * 1.05) * 22, rz + Math.sin(i * 1.05) * 22, 0, ESCALA.objeto * 3, 0));
+  marca(rx, rz);
+
+  // ===== Ilhas inimigas: fortes dos outros clãs =====
+  for (const ilha of ILHAS.filter((i) => i.dono === 'conselho' || i.dono === 'rival')) {
+    const [cx, cz] = ilha.centro, conselho = ilha.dono === 'conselho', flag = conselho ? 'natureza/flag_red' : 'natureza/flag_blue';
+    if (conselho) add('cenario/castle_blue', noChao(cx, cz, 0, S * 2.6));
+    else { add('cenario/tower_B_red', noChao(cx, cz, 0, S * 1.4)); add('cenario/barracks_blue', noChao(cx + 14, cz - 6, 0.4, S)); }
+    add('cenario/tower_A_red', noChao(cx - 20, cz + 14, 0, S)); add('cenario/tower_A_red', noChao(cx + 20, cz + 14, 0, S));
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2, x = cx + Math.cos(a) * 36, z = cz + Math.sin(a) * 36;
+      add(i === 6 ? 'natureza/wall_straight_gate' : 'natureza/wall_straight', noChao(x, z, -a + Math.PI / 2, S * 1.4, 0.3));
+    }
+    for (let i = 0; i < 6; i++) add(flag, noChao(cx + Math.cos(i * 1.05 + 0.5) * 30, cz + Math.sin(i * 1.05 + 0.5) * 30, 0, ESCALA.objeto * 3.2, 0));
+    for (let i = 0; i < 5; i++) add('natureza/tent', noChao(cx - 12 + i * 6, cz - 18, rnd() * 6, ESCALA.objeto * 1.4, 0));
+    marca(cx, cz);
+  }
+
+  // ===== Floresta (árvores realistas) =====
   const arvores = ['natureza/trees_A_large', 'natureza/trees_B_large', 'natureza/trees_A_medium', 'natureza/trees_B_medium'];
-  for (let i = 0; i < 420; i++) {
-    const x = (rnd() - 0.5) * 360, z = (rnd() - 0.5) * 360, d = Math.hypot(x, z);
-    if (d < 58 || d > 175 || !livre(x, z, 6) || Math.hypot(x - rx, z - rz) < 28 || (x < -40 && x > -90 && z > 30 && z < 75)) continue;
+  for (let i = 0; i < 900; i++) {
+    const ilhaIdx = i < 760 ? 0 : 1 + (i % 4);
+    const il = ILHAS[ilhaIdx], a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * il.raio * 0.85;
+    const x = il.centro[0] + Math.cos(a) * d, z = il.centro[1] + Math.sin(a) * d, h = altura(x, z);
+    if (h < 1.5 || h > 34 || !livre(x, z, 6) || ocupados.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < (ilhaIdx ? 42 : 16))) continue;
+    if (ilhaIdx === 0 && Math.hypot(x, z) < 110) continue;                        // sem bosque dentro da vila
     add(arvores[i % 4], noChao(x, z, rnd() * 6, ESCALA.arvore * (0.8 + rnd() * 0.5), 0.3));
   }
-  for (let i = 0; i < 70; i++) {
-    const a = rnd() * Math.PI * 2, d = 18 + rnd() * 45, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (!livre(x, z, 5)) continue;
+  for (let i = 0; i < 90; i++) {                                                   // árvores soltas na vila e na aldeia
+    const a = rnd() * Math.PI * 2, d = 25 + rnd() * 90, x = Math.cos(a) * d, z = Math.sin(a) * d;
+    if (!livre(x, z, 5) || ocupados.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 9)) continue;
     add(i % 2 ? 'natureza/tree_single_A' : 'natureza/tree_single_B', noChao(x, z, rnd() * 6, ESCALA.arvore * (0.8 + rnd() * 0.4), 0.2));
   }
-  // Pedras
+  // ===== Pedras =====
   const pedras = ['natureza/rock_single_A', 'natureza/rock_single_B', 'natureza/rock_single_C', 'natureza/rock_single_D', 'natureza/rock_single_E'];
-  for (let i = 0; i < 160; i++) {
-    const x = (rnd() - 0.5) * 340, z = (rnd() - 0.5) * 340;
-    if (Math.hypot(x, z) < 16 || !livre(x, z, 2)) continue;
-    add(pedras[i % 5], noChao(x, z, rnd() * 6, ESCALA.pedra * (0.6 + rnd() * 1.4), 0.1));
-  }
-  // Montanhas em volta
-  const mont = ['natureza/mountain_A_grass_trees', 'natureza/mountain_B_grass_trees', 'natureza/mountain_C_grass', 'natureza/hills_A_trees', 'natureza/hills_B_trees'];
-  for (let i = 0; i < 34; i++) {
-    const a = (i / 34) * Math.PI * 2 + rnd() * 0.1, d = 182 + rnd() * 22, x = Math.cos(a) * d, z = Math.sin(a) * d;
-    add(mont[i % 5], { p: [x, altura(x, z) - 2, z], r: rnd() * 6, s: ESCALA.montanha * (0.85 + rnd() * 0.5) });
+  for (let i = 0; i < 320; i++) {
+    const x = (rnd() - 0.5) * 560, z = (rnd() - 0.5) * 560, h = altura(x, z);
+    if (Math.hypot(x, z) < 25 || h < 0.8 || !livre(x, z, 2)) continue;
+    add(pedras[i % 5], noChao(x, z, rnd() * 6, ESCALA.pedra * (0.6 + rnd() * (h > 15 ? 3 : 1.4)), 0.1));
   }
   return L;
 }
@@ -196,7 +243,8 @@ function casasRealistas(L: Record<string, Transf[]>): CasaPos[] {
     for (const t of lista) {
       const [x, , z] = t.p, d = Math.hypot(x, z);
       // na vila a fachada olha para a praça; fora dela mantém a direção original
-      const r = d < 70 && tipo !== 'igreja' ? Math.atan2(-x, -z) : tipo === 'igreja' ? Math.atan2(-x, -z) : t.r;
+      const naAldeia = Math.hypot(x - LUGAR.aldeia[0], z - LUGAR.aldeia[1]) < 45;
+      const r = naAldeia ? Math.atan2(LUGAR.aldeia[0] - x, LUGAR.aldeia[1] - z) : d < 130 ? Math.atan2(-x, -z) : t.r;
       const y = Math.min(altura(x, z), altura(x + 3, z + 3), altura(x - 3, z - 3)) - 0.25;
       out.push({ tipo, p: [x, y, z], r, s: tipo === 'igreja' ? 1 : 0.92 + ((Math.abs(x * 13 + z * 7) | 0) % 10) / 60 });
     }

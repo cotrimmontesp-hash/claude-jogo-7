@@ -5,6 +5,7 @@ import { Mundo } from '../game/Mundo';
 import { PRESETS } from '../game/qualidade';
 import { definirAvisoQualidade } from '../game/Mundo';
 import { HUD } from '../ui/HUD';
+import { HistoriaHUD } from '../ui/HistoriaHUD';
 import { Controles } from '../ui/Controles';
 import { ligarTecladoMouse } from '../game/input';
 import { iniciarAutoSave, salvarAgora } from '../state/save';
@@ -39,6 +40,7 @@ export function Jogo() {
         <Mundo />
       </Canvas>
       <HUD onPausar={() => setPausado(true)} />
+      <HistoriaHUD />
       {!pausado && <Controles />}
       {!!aviso && <Text style={s.aviso}>{aviso}</Text>}
       {carregado < 100 && (
@@ -53,6 +55,8 @@ export function Jogo() {
           <Text style={s.titulo}>PAUSA</Text>
           <Botao texto="Continuar" onPress={() => setPausado(false)} />
           <Botao texto="Salvar agora" onPress={salvarManual} />
+          <Botao texto="⚒ Forja: evoluir arma e armadura" onPress={async () => { await salvarAgora(); irPara('forja'); }} />
+          <Botao texto="⚑ Meu clã" onPress={async () => { await salvarAgora(); irPara('cla'); }} />
           <Text style={s.sub}>Câmera</Text>
           <View style={s.linha}>
             {(['terceira', 'cima', 'lateral'] as ModoCamera[]).map((m) => (

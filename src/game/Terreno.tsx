@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { useTexture } from './drei';
 import { textura } from './modelos';
 
-export const TAM_MUNDO = 420;
+import { ILHAS, TAM_MUNDO as TAM } from './mapa';
+export const TAM_MUNDO = TAM;
 
 // ruído simples e determinístico (soma de ondas) — mesmo resultado no celular e no PC
 const r = (x: number, z: number, f: number, s: number) => Math.sin(x * f + s) * Math.cos(z * f * 1.3 - s * 0.7);
@@ -19,16 +20,36 @@ export const distEstrada = (x: number, z: number) => Math.abs(x - Math.sin(z * 0
 export const distRio = (x: number, z: number) => Math.abs(x - (70 + Math.sin(z * 0.03) * 12));
 export const ALTURA_AGUA = -1.2;
 
-export function altura(x: number, z: number) {
+const FUNDO_MAR = -9;
+
+// Relevo da ilha principal: vila plana, morros, serra alta ao norte, rio a leste
+function alturaPrincipal(x: number, z: number) {
   const d = Math.hypot(x, z);
-  const vila = THREE.MathUtils.smoothstep(d, 22, 55);
-  const borda = THREE.MathUtils.smoothstep(d, 115, 195) * 42 + THREE.MathUtils.smoothstep(d, 150, 200) * Math.max(0, ruido(x * 2, z * 2)) * 25;
-  let h = ruido(x, z) * 6 * vila + borda;
+  const vila = THREE.MathUtils.smoothstep(d, 30, 90);
+  const norte = 0.35 + 0.65 * Math.max(0, -z / Math.max(d, 1));                // serra mais alta ao norte
+  const serra = THREE.MathUtils.smoothstep(d, 150, 235) * (1 - THREE.MathUtils.smoothstep(d, 255, 290)) * norte * (40 + Math.max(0, ruido(x * 2, z * 2)) * 30);
+  let h = ruido(x * 0.7, z * 0.7) * 7 * vila + serra + 1.2;
   const rio = distRio(x, z);
-  if (rio < 9) h = THREE.MathUtils.lerp(ALTURA_AGUA - 1.4, h, THREE.MathUtils.smoothstep(rio, 3, 9));
+  if (rio < 9 && z > -120) h = THREE.MathUtils.lerp(ALTURA_AGUA - 1.4, h, THREE.MathUtils.smoothstep(rio, 3, 9));
   const est = distEstrada(x, z);
   if (est < 4) h = THREE.MathUtils.lerp(h * 0.6, h, est / 4);
   return h;
+}
+
+// Ilhas dos clãs: morros suaves
+const alturaIlhaClã = (x: number, z: number) => 1.5 + Math.max(0, ruido(x * 1.3 + 40, z * 1.3)) * 6;
+
+export function altura(x: number, z: number) {
+  let melhor = FUNDO_MAR;
+  for (const ilha of ILHAS) {
+    const dx = x - ilha.centro[0], dz = z - ilha.centro[1], d = Math.hypot(dx, dz);
+    const costa = ilha.raio * (1 + ruido(Math.atan2(dz, dx) * 40, ilha.raio) * 0.12);   // contorno irregular
+    if (d > costa + 40) continue;
+    const terra = 1 - THREE.MathUtils.smoothstep(d, costa - 30, costa + 12);
+    const base = ilha.id === 'principal' ? alturaPrincipal(x, z) : alturaIlhaClã(x, z);
+    melhor = Math.max(melhor, THREE.MathUtils.lerp(FUNDO_MAR, base, terra));
+  }
+  return melhor;
 }
 
 const ss = THREE.MathUtils.smoothstep;
@@ -95,13 +116,13 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = altura(x, z);
       pos.setY(i, h);
-      const d = Math.hypot(x, z), n = ruido(x * 2.7, z * 2.7);
+      const d = Math.hypot(x, z), n = ruido(x * 2.7, z * 2.7);   // d = distância da praça de Vila Rica
       let grama = 1, terra = 0;
-      let floresta = ss(d, 55, 80) * ss(n, -0.2, 0.3) * 0.9;                  // chão de floresta fora da vila
+      let floresta = ss(d, 95, 130) * ss(n, -0.2, 0.3) * 0.9;                  // chão de floresta fora da vila
       terra = Math.max(terra, 1 - ss(distEstrada(x, z), 1.8, 3.6));           // estrada
-      const calcada = 1 - ss(d, 13, 16);                                       // praça calçada de pedra (pé-de-moleque)
+      const calcada = 1 - ss(d, 18, 22);                                       // praça calçada de pedra (pé-de-moleque)
       terra = Math.max(terra, ss(n, 0.45, 0.6) * (1 - ss(d, 15, 60)) * 0.6);   // manchas de terra na vila
-      const areia = 1 - ss(distRio(x, z), 6, 11);
+      const areia = Math.max(1 - ss(distRio(x, z), 6, 11), 1 - ss(h, 0.2, 2.2));   // margem do rio e praias
       const pedra = ss(h, 11, 22);
       const neve = ss(h, 30, 40);
       terra *= 1 - calcada;

@@ -51,12 +51,6 @@ export function HUD({ onPausar }: { onPausar: () => void }) {
         <Barra rotulo="💧" valor={p.sede} cor={cores.azul} />
         <Barra rotulo="⚡" valor={p.energia} cor={cores.verde} />
       </View>
-      {p.modo.startsWith('historia') && missao && (
-        <View style={s.missao}>
-          <Text style={s.cap}>Cap. {cap!.id} · {cap!.titulo}</Text>
-          <Text style={s.obj}>◆ {missao.titulo}: {missao.objetivo}</Text>
-        </View>
-      )}
       {p.modo === 'sobrevivencia' && <View style={s.missao}><Text style={s.cap}>Dia {p.diasSobrevividos + 1}</Text></View>}
       {p.cla.invasaoAtiva && !batalha && (
         <View style={s.invasao}>

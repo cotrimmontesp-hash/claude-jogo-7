@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { useJogo, type EstadoCla, type Guerreiro, type Progresso } from '../state/store';
 import { GUERREIROS, CONSTRUCOES, FORTES, guerreirosMax, intervaloInvasao, poderInvasao, type Classe } from '../data/cla';
 import type { Material } from '../data/items';
+import { concluirMissao, useHistoria } from './historia';
+import { ILHAS } from './mapa';
+import { teleportar, pontoDoCais } from './teleporte';
 
 const NOMES = ['Bento', 'Rosa', 'Joaquim', 'Luzia', 'Severino', 'Ana', 'Raimundo', 'Benedita', 'Firmino', 'Isabel', 'Damião', 'Conceição', 'Zé Pedro', 'Felícia', 'Antônio', 'Margarida'];
 
@@ -122,15 +125,15 @@ export function verificarInvasao() {
 export interface Combatente { uid: string; lado: 'aliado' | 'inimigo'; classe: Classe | 'guarda'; nome: string; vida: number; vidaMax: number; dano: number; vel: number; pos: [number, number, number]; guerreiroId?: string; }
 
 interface EstadoBatalha {
-  ativa: null | { tipo: 'defesa' | 'ataque'; forteId?: string; levados: string[] };
+  ativa: null | { tipo: 'defesa' | 'ataque' | 'missao'; forteId?: string; levados: string[] };
   combatentes: Combatente[];
-  iniciar: (tipo: 'defesa' | 'ataque', inimigos: number, poderPorInimigo: number, levados: string[], forteId?: string) => void;
+  iniciar: (tipo: 'defesa' | 'ataque' | 'missao', inimigos: number, poderPorInimigo: number, levados: string[], forteId?: string, centroInimigos?: [number, number]) => void;
   encerrar: () => void;
 }
 
 export const useBatalha = create<EstadoBatalha>((set) => ({
   ativa: null, combatentes: [],
-  iniciar: (tipo, inimigos, poderPorInimigo, levados, forteId) => {
+  iniciar: (tipo, inimigos, poderPorInimigo, levados, forteId, centroInimigos) => {
     const p = useJogo.getState().progresso!;
     const centro = p.posicao;
     const aliados: Combatente[] = p.cla.guerreiros.filter((g) => levados.includes(g.id) && !g.ferido).map((g, i) => {
@@ -140,7 +143,8 @@ export const useBatalha = create<EstadoBatalha>((set) => ({
     });
     const inim: Combatente[] = Array.from({ length: inimigos }, (_, i) => ({
       uid: `i${i}`, lado: 'inimigo', classe: 'guarda', nome: 'Guarda do Conselho', vida: poderPorInimigo * 2, vidaMax: poderPorInimigo * 2, dano: poderPorInimigo * 0.35, vel: 3.3,
-      pos: [centro[0] + 18 + (i % 5) * 1.5, 0, centro[2] - 6 + Math.floor(i / 5) * 1.5],
+      pos: centroInimigos ? [centroInimigos[0] + Math.cos(i * 1.3) * (3 + i), 0, centroInimigos[1] + Math.sin(i * 1.3) * (3 + i)]
+        : [centro[0] + 18 + (i % 5) * 1.5, 0, centro[2] - 6 + Math.floor(i / 5) * 1.5],
     }));
     set({ ativa: { tipo, forteId, levados }, combatentes: [...aliados, ...inim] });
   },
@@ -149,18 +153,34 @@ export const useBatalha = create<EstadoBatalha>((set) => ({
 
 export function defenderNoMapa() {
   const p = useJogo.getState().progresso!; const inv = p.cla.invasaoAtiva!;
+  teleportar(pontoDoCais('refugio'));                    // corre para defender a ilha do clã
   const qtd = Math.min(20, 4 + Math.floor(inv.poder / 40));
-  useBatalha.getState().iniciar('defesa', qtd, inv.poder / qtd, p.cla.guerreiros.map((g) => g.id));
+  setTimeout(() => useBatalha.getState().iniciar('defesa', qtd, inv.poder / qtd, p.cla.guerreiros.map((g) => g.id)), 400);
 }
 
+const ILHA_DO_FORTE: Record<string, string> = { cla_serra: 'serra', cla_corsarios: 'corsarios', fortaleza_ferro: 'conselho' };
 export function invadirNoMapa(forteId: string, levados: string[]) {
   const f = FORTES.find((x) => x.id === forteId)!;
+  const ilhaId = ILHA_DO_FORTE[forteId];
+  if (ilhaId) {
+    // invasão de outra ilha: o grupo desembarca no cais e os defensores esperam no forte
+    const ilha = ILHAS.find((i) => i.id === ilhaId)!, chegada = pontoDoCais(ilhaId);
+    teleportar(chegada);
+    setTimeout(() => useBatalha.getState().iniciar('ataque', Math.min(20, f.guardas), f.poder / f.guardas, levados, forteId,
+      [(chegada.x + ilha.centro[0]) / 2, (chegada.z + ilha.centro[1]) / 2]), 400);
+    return;
+  }
   useBatalha.getState().iniciar('ataque', Math.min(20, f.guardas), f.poder / f.guardas, levados, forteId);
 }
 
 // Fim da batalha jogável: aplica feridos/mortos de verdade
 export function terminarBatalhaNoMapa(venceu: boolean) {
   const b = useBatalha.getState(); const p = useJogo.getState().progresso!; if (!b.ativa) return;
+  if (b.ativa.tipo === 'missao') {                       // luta da história: venceu = missão concluída; perdeu = tenta de novo
+    b.encerrar(); useHistoria.setState({ contagem: 0 });
+    if (venceu) concluirMissao();
+    return;
+  }
   const caidos = b.combatentes.filter((c) => c.lado === 'aliado' && c.vida <= 0).map((c) => c.guerreiroId!);
   const guerreiros = p.cla.guerreiros.flatMap((g) => {
     if (!b.ativa!.levados.includes(g.id)) return [g];

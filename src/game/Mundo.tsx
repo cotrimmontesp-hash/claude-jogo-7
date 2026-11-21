@@ -15,6 +15,11 @@ import { MONTARIAS } from '../data/mounts';
 import { enviarEstadoJogador } from '../net/client';
 import { Graficos } from './Graficos';
 import { PRESETS, ORDEM } from './qualidade';
+import { LIMITE_MUNDO, LUGAR } from './mapa';
+import { HistoriaMundo, danoNoChefe } from './HistoriaMundo';
+import { Moradores } from './Moradores';
+import { pedidoTeleporte } from './teleporte';
+import { animalAbatido, missaoAtual } from './historia';
 import { Batalha } from './Batalha';
 import { Agua, Grama, Particulas, RelogioVento } from './Efeitos';
 import { verificarInvasao, useBatalha } from './claLogica';
@@ -22,12 +27,13 @@ import { modelo, ESCALA, MODELOS_HEROI, modeloArma } from './modelos';
 
 const VEL_ANDAR = 2.6, VEL_CORRER = 6.2, VEL_FURTIVO = 1.5, GRAVIDADE = 24, PULO = 8.5;
 const DURACAO_DIA = 36 * 60; // 24 min reais = 1 dia no jogo
-const LIMITE = 165;
+const LIMITE = LIMITE_MUNDO;
 
 export const jogadorPos = new THREE.Vector3();
 export let avisoQualidade: (t: string) => void = () => {};
 export const definirAvisoQualidade = (f: (t: string) => void) => { avisoQualidade = f; };
 export const jogadorRot = new THREE.Euler();
+export const cameraInfo = { yaw: 0 };   // para a bússola do HUD
 // ---------- Câmera ----------
 // O mouse gira a câmera na hora (sem atraso); só o ponto que segue o personagem é suavizado.
 function CameraRig({ alvo, modo }: { alvo: React.RefObject<THREE.Group | null>; modo: ModoCamera }) {
@@ -118,6 +124,7 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
   useFrame((_, dt) => {
     const g = ref.current; if (!g) return;
     dt = Math.min(dt, 0.05);
+    if (pedidoTeleporte.alvo) { g.position.copy(pedidoTeleporte.alvo); pedidoTeleporte.alvo = null; velY.current = 0; }   // canoa / invasão
     const { x, y } = entrada.mover;
     let dir = new THREE.Vector3();
     if (modo === 'lateral') dir.set(x, 0, 0);
@@ -131,7 +138,9 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
     const vel = (mont ? (entrada.correr ? mont.velocidade : mont.velocidade * 0.4)
       : (entrada.furtivo ? VEL_FURTIVO : entrada.correr ? VEL_CORRER : VEL_ANDAR) * heroi.bonus.agilidade) * (atacando ? 0.25 : 1);
     if (intens > 0.05 && !(atacando && golpe.current > duracaoAtual.current * 0.4)) {
+      const antes = g.position.clone();
       g.position.addScaledVector(dir.normalize(), vel * intens * dt);
+      if (altura(g.position.x, g.position.z) < -3.2) g.position.copy(antes);   // mar fundo: só de canoa (cais)
       const alvoRot = Math.atan2(dir.x, dir.z);
       let dif = alvoRot - g.rotation.y; dif = Math.atan2(Math.sin(dif), Math.cos(dif));
       g.rotation.y += dif * Math.min(1, dt * 12);
@@ -182,7 +191,7 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
 
     envio.current += dt;
     if (envio.current > 0.066) { envio.current = 0; enviarEstadoJogador({ p: g.position.toArray(), r: g.rotation.y, anim: novo }); }
-    jogadorPos.copy(g.position); jogadorRot.copy(g.rotation);
+    jogadorPos.copy(g.position); jogadorRot.copy(g.rotation); cameraInfo.yaw = yawCamera(camera);
   });
 
   const velArmaRender = Math.max(0.6, arma?.velocidade ?? 1);
@@ -305,7 +314,7 @@ function useAnimais(qtd: number) {
     const comuns = ANIMAIS.filter((a) => a.vida < 200 && FORMA[a.id]);
     return Array.from({ length: qtd }, (_, i) => {
       const def = comuns[i % comuns.length];
-      let x = 0, z = 0; do { x = (Math.random() - 0.5) * 300; z = (Math.random() - 0.5) * 300; } while (Math.hypot(x, z) < 55);
+      let x = 0, z = 0; do { x = (Math.random() - 0.5) * 480; z = (Math.random() - 0.5) * 480; } while (Math.hypot(x, z) < 100 || altura(x, z) < 1.5 || altura(x, z) > 25);
       if (def.id === 'jacare') x = 70 + (Math.random() - 0.5) * 10;
       const pos = new THREE.Vector3(x, altura(x, z), z);
       return { uid: i, def, vida: def.vida, pos, alvo: pos.clone(), ref: React.createRef<THREE.Group>(), passo: Math.random() * 6 };
@@ -318,7 +327,7 @@ export function Mundo() {
   const atualizar = useJogo((s) => s.atualizar);
   const qualidade = useJogo((s) => s.config.qualidade);
   const q = PRESETS[qualidade];
-  const animais = useAnimais(qualidade === 'baixo' ? 14 : 26);
+  const animais = useAnimais(qualidade === 'baixo' ? 20 : 40);
   const patas = useRef<Record<number, (THREE.Group | null)[]>>({});
   const sol = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
@@ -336,6 +345,7 @@ export function Mundo() {
     return melhor;
   };
   const atacar = (pos: THREE.Vector3, alcance: number, dano: number) => {
+    danoNoChefe(pos, alcance, dano);
     // guardas do Conselho nas batalhas do clã
     for (const c of useBatalha.getState().combatentes) {
       if (c.lado === 'inimigo' && c.vida > 0 && new THREE.Vector3(...c.pos).distanceTo(pos) < alcance + 0.8) c.vida -= dano * 1.4;
@@ -344,6 +354,7 @@ export function Mundo() {
       if (a.vida <= 0 || a.pos.distanceTo(pos) > alcance + 0.8) continue;
       a.vida -= dano;
       if (a.vida <= 0) {
+        animalAbatido(a.def.id);                                          // conta para as missões de caça
         const ganhos: Partial<Record<Material, number>> = {};
         for (const d of a.def.drops) if (Math.random() < d.chance) ganhos[d.material] = d.min + Math.floor(Math.random() * (d.max - d.min + 1));
         atualizar((p) => {
@@ -393,6 +404,13 @@ export function Mundo() {
     }
     if (hemi.current) { hemi.current.intensity = THREE.MathUtils.lerp(0.85, 0.9, dia); hemi.current.color.set(dia < 0.5 ? '#5a6fa8' : '#cfe3ff'); }
 
+    // missão de caça: se não houver o animal pedido perto do local, um aparece por lá
+    const mc = missaoAtual();
+    if (mc?.tipo === 'cacar' && mc.animal) {
+      const perto = animais.some((a) => a.def.id === mc.animal && a.vida > 0 && Math.hypot(a.pos.x - mc.local[0], a.pos.z - mc.local[1]) < 70);
+      const livre = animais.find((a) => a.def.id === mc.animal);
+      if (!perto && livre) { livre.vida = livre.def.vida; livre.pos.set(mc.local[0] + 12, 0, mc.local[1] + 8); livre.alvo.copy(livre.pos); }
+    }
     // animais
     for (const a of animais) {
       const g = a.ref.current; if (!g) continue;
@@ -425,7 +443,7 @@ export function Mundo() {
         shadow-mapSize={[q.sombra, q.sombra]} shadow-bias={-0.0004} shadow-normalBias={0.04}
         shadow-camera-left={-45} shadow-camera-right={45} shadow-camera-top={45} shadow-camera-bottom={-45} shadow-camera-near={1} shadow-camera-far={220} />
       <RelogioVento />
-      <Suspense fallback={null}><Terreno segmentos={qualidade === 'baixo' ? 120 : qualidade === 'medio' ? 180 : 260} /></Suspense>
+      <Suspense fallback={null}><Terreno segmentos={qualidade === 'baixo' ? 180 : qualidade === 'medio' ? 260 : 360} /></Suspense>
       <Suspense fallback={null}><Agua /></Suspense>
       {q.grama > 0 && <Grama quantidade={q.grama} />}
       <Particulas />
@@ -438,6 +456,8 @@ export function Mundo() {
         </group>
       ))}
       <Suspense fallback={null}><Batalha /></Suspense>
+      <HistoriaMundo />
+      <Moradores quantidade={qualidade === 'baixo' ? 8 : 14} />
       <Suspense fallback={null}><Jogador onAtacar={atacar} alvoPerto={alvoPerto} /></Suspense>
     </>
   );
