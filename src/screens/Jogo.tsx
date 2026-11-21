@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Canvas } from '../game/r3f';
 import { Mundo } from '../game/Mundo';
 import { PRESETS } from '../game/qualidade';
+import { definirAvisoQualidade } from '../game/Mundo';
 import { HUD } from '../ui/HUD';
 import { Controles } from '../ui/Controles';
 import { ligarTecladoMouse } from '../game/input';
@@ -22,6 +23,7 @@ export function Jogo() {
     const desligaSave = iniciarAutoSave();   // salva sozinho a cada 30s e ao sair/minimizar
     const desligaTeclas = ligarTecladoMouse();
     deitarTela();
+    definirAvisoQualidade((t) => { setAviso(t); setTimeout(() => setAviso(''), 4000); });
     const m = THREE.DefaultLoadingManager;
     m.onProgress = (_u, feitos, total) => setCarregado(Math.round((feitos / Math.max(total, 1)) * 100));
     m.onLoad = () => setCarregado(100);

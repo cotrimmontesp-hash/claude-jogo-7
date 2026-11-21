@@ -29,6 +29,10 @@ export function Config() {
       <Linha titulo="Qualidade gráfica">
         {QUALIDADES.map((q) => <Botao key={q.id} texto={q.nome} ativo={config.qualidade === q.id} onPress={() => setConfig({ qualidade: q.id })} />)}
       </Linha>
+      <Linha titulo="Ajustar gráfico sozinho se ficar lento">
+        <Botao texto="Ligado" ativo={config.autoQualidade !== false} onPress={() => setConfig({ autoQualidade: true })} />
+        <Botao texto="Desligado" ativo={config.autoQualidade === false} onPress={() => setConfig({ autoQualidade: false })} />
+      </Linha>
       <Linha titulo={`Sensibilidade da câmera: ${config.sensibilidade}`}>
         <Botao texto="−" onPress={() => setConfig({ sensibilidade: passo(config.sensibilidade, -0.1, 0.2, 3) })} />
         <Botao texto="+" onPress={() => setConfig({ sensibilidade: passo(config.sensibilidade, 0.1, 0.2, 3) })} />

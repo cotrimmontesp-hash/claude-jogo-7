@@ -12,5 +12,15 @@ export const PRESETS: Record<Qualidade, { dpr: number; sombra: number; distancia
 export function qualidadeInicial(): Qualidade {
   if (typeof window === 'undefined') return 'medio';
   const toque = 'ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
-  return toque ? 'medio' : 'alto';
+  if (toque) return 'medio';
+  // placa de vídeo integrada (Intel/AMD básica) começa no Médio; placa dedicada começa no Alto
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2') as WebGL2RenderingContext | null;
+    const ext = gl?.getExtension('WEBGL_debug_renderer_info');
+    const placa = ext ? String(gl!.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    if (/intel|uhd|iris|radeon\(tm\) graphics|vega|mali|adreno|swiftshader/i.test(placa)) return 'medio';
+  } catch {}
+  return 'alto';
 }
+
+export const ORDEM: Qualidade[] = ['baixo', 'medio', 'alto', 'ultra'];

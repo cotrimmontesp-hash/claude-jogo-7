@@ -14,7 +14,7 @@ import { HEROIS } from '../data/characters';
 import { MONTARIAS } from '../data/mounts';
 import { enviarEstadoJogador } from '../net/client';
 import { Graficos } from './Graficos';
-import { PRESETS } from './qualidade';
+import { PRESETS, ORDEM } from './qualidade';
 import { Batalha } from './Batalha';
 import { Agua, Grama, Particulas, RelogioVento } from './Efeitos';
 import { verificarInvasao } from './claLogica';
@@ -25,6 +25,8 @@ const DURACAO_DIA = 36 * 60; // 24 min reais = 1 dia no jogo
 const LIMITE = 165;
 
 export const jogadorPos = new THREE.Vector3();
+export let avisoQualidade: (t: string) => void = () => {};
+export const definirAvisoQualidade = (f: (t: string) => void) => { avisoQualidade = f; };
 export const jogadorRot = new THREE.Euler();
 // ---------- Câmera ----------
 // O mouse gira a câmera na hora (sem atraso); só o ponto que segue o personagem é suavizado.
@@ -296,6 +298,8 @@ export function Mundo() {
   const sol = useRef<THREE.DirectionalLight>(null);
   const hemi = useRef<THREE.HemisphereLight>(null);
   const relogioCla = useRef(0);
+  // Qualidade automática: mede os quadros por segundo e baixa o gráfico se o jogo estiver lento
+  const fps = useRef({ t: 0, n: 0, espera: 6, baixas: 0 });
 
   const atacar = (pos: THREE.Vector3, alcance: number, dano: number) => {
     for (const a of animais) {
@@ -315,6 +319,17 @@ export function Mundo() {
   };
 
   useFrame((_, dt) => {
+    {
+      const f = fps.current; f.t += dt; f.n++;
+      if (f.t >= 3) {
+        const media = f.n / f.t; f.t = 0; f.n = 0;
+        if (f.espera > 0) f.espera -= 3;                                        // espera o mundo terminar de carregar
+        else if (media < 26 && useJogo.getState().config.autoQualidade !== false) {
+          const atual = useJogo.getState().config.qualidade, i = ORDEM.indexOf(atual);
+          if (i > 0) { useJogo.getState().setConfig({ qualidade: ORDEM[i - 1] }); f.espera = 6; avisoQualidade(`Gráfico ajustado para ${ORDEM[i - 1].toUpperCase()} para ficar mais fluido (${Math.round(media)} FPS)`); }
+        }
+      }
+    }
     dt = Math.min(dt, 0.05);
     relogioCla.current += dt; if (relogioCla.current > 1) { relogioCla.current = 0; verificarInvasao(); }
     atualizar((p) => {

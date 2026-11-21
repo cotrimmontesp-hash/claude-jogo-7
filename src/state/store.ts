@@ -55,7 +55,7 @@ export const claInicial = (): EstadoCla => ({
   proximaInvasao: 3, invasaoAtiva: null, fortesConquistados: [], historico: [],
 });
 
-export interface Config { camera: ModoCamera; volume: number; sensibilidade: number; vozAtiva: boolean; qualidade: Qualidade; }
+export interface Config { camera: ModoCamera; volume: number; sensibilidade: number; vozAtiva: boolean; qualidade: Qualidade; autoQualidade?: boolean; }
 
 export const progressoInicial = (heroi: Heroi['id'], modo: ModoJogo): Progresso => ({
   heroi, modo, diasSobrevividos: 0, capitulo: 1, missao: 1, missoesConcluidas: [], posicao: [0, 0, 0],
