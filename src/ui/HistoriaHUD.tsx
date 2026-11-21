@@ -1,5 +1,5 @@
 // Interface do modo história: objetivo com seta e distância, diálogos, vida do chefe, menu da canoa e avisos.
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useJogo } from '../state/store';
 import { HISTORIA, missaoAtual, useHistoria } from '../game/historia';
@@ -14,6 +14,8 @@ export function HistoriaHUD() {
   const { dialogo, indiceFala, contagem, chefe, aviso, avancar } = useHistoria();
   const viagem = useViagem();
   const dicaCasa = useInterior((s) => s.dica);
+  const [, tique] = useState(0);
+  useEffect(() => { const t = setInterval(() => tique((n) => n + 1), 300); return () => clearInterval(t); }, []);
 
   // teclado: Enter/Espaço/E avançam a conversa
   useEffect(() => {
@@ -63,6 +65,8 @@ export function HistoriaHUD() {
         </View>
       )}
 
+      <MiniMapa alvo={m?.local} />
+
       {/* vida do chefe */}
       {chefe && chefe.vida > 0 && (
         <View style={s.chefe} pointerEvents="none">
@@ -104,28 +108,54 @@ export function HistoriaHUD() {
 
 const s = StyleSheet.create({
   missao: { position: 'absolute', top: 10, alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
-  cap: { color: cores.textoFraco, fontSize: 11, fontWeight: '700', textShadowColor: '#000', textShadowRadius: 4 },
-  titulo: { color: cores.ouro, fontSize: 16, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 4 },
-  obj: { color: cores.texto, fontSize: 13, textShadowColor: '#000', textShadowRadius: 4, maxWidth: 520, textAlign: 'center' },
+  cap: { color: cores.textoFraco, fontSize: 9, fontWeight: '700', textShadowColor: '#000', textShadowRadius: 4 },
+  titulo: { color: cores.ouro, fontSize: 13, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 4 },
+  obj: { color: cores.texto, fontSize: 11, textShadowColor: '#000', textShadowRadius: 4, maxWidth: 520, textAlign: 'center' },
   bussola: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2, backgroundColor: '#0008', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 10 },
-  seta: { color: cores.ouro, fontSize: 20, fontWeight: '900' },
-  dist: { color: cores.texto, fontWeight: '800', fontSize: 13 },
-  chefe: { position: 'absolute', top: 96, alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
+  seta: { color: cores.ouro, fontSize: 15, fontWeight: '900' },
+  dist: { color: cores.texto, fontWeight: '800', fontSize: 11 },
+  chefe: { position: 'absolute', top: 80, alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
   chefeNome: { color: '#ffb3a8', fontWeight: '900', textShadowColor: '#000', textShadowRadius: 4 },
-  barra: { width: 360, height: 12, backgroundColor: '#000b', borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: '#ffb3a855' },
-  barraVida: { height: 12, backgroundColor: '#c0392b' },
+  barra: { width: 260, height: 9, backgroundColor: '#000b', borderRadius: 6, overflow: 'hidden', borderWidth: 1, borderColor: '#ffb3a855' },
+  barraVida: { height: 9, backgroundColor: '#c0392b' },
   aviso: { position: 'absolute', top: 130, alignSelf: 'center', left: 0, right: 0, alignItems: 'center' },
-  avisoTxt: { color: '#fff', backgroundColor: '#2e7d32dd', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, fontWeight: '800', maxWidth: 600, textAlign: 'center' },
-  dialogo: { position: 'absolute', bottom: 24, left: '18%', right: '18%', backgroundColor: '#120d08ee', borderRadius: 14, padding: 14, borderWidth: 2, borderColor: cores.ouro, zIndex: 50 },
-  quem: { color: cores.ouro, fontWeight: '900', fontSize: 15, marginBottom: 4 },
-  fala: { color: cores.texto, fontSize: 15, lineHeight: 21 },
-  continuar: { color: cores.textoFraco, fontSize: 11, textAlign: 'right', marginTop: 6 },
+  avisoTxt: { color: '#fff', backgroundColor: '#2e7d32dd', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, fontWeight: '800', fontSize: 11, maxWidth: 480, textAlign: 'center' },
+  dialogo: { position: 'absolute', bottom: 12, left: '27%', right: '27%', backgroundColor: '#120d08dd', borderRadius: 10, padding: 8, borderWidth: 2, borderColor: cores.ouro, zIndex: 50 },
+  quem: { color: cores.ouro, fontWeight: '900', fontSize: 11, marginBottom: 2 },
+  fala: { color: cores.texto, fontSize: 12, lineHeight: 16 },
+  continuar: { color: cores.textoFraco, fontSize: 8, textAlign: 'right', marginTop: 3 },
   menuViagem: { position: 'absolute', alignSelf: 'center', top: '20%', left: '28%', right: '28%', backgroundColor: '#120d08f2', borderRadius: 14, padding: 14, gap: 8, borderWidth: 2, borderColor: cores.ouro, zIndex: 60 },
-  menuTitulo: { color: cores.ouro, fontWeight: '900', fontSize: 18, textAlign: 'center' },
-  opcao: { backgroundColor: '#2b2117', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: cores.ouroEscuro },
+  menuTitulo: { color: cores.ouro, fontWeight: '900', fontSize: 15, textAlign: 'center' },
+  opcao: { backgroundColor: '#2b2117', borderRadius: 8, padding: 7, borderWidth: 1, borderColor: cores.ouroEscuro },
   opcaoTxt: { color: cores.texto, fontWeight: '800' },
   dicaCasa: { position: 'absolute', bottom: '30%', left: 0, right: 0, alignItems: 'center' },
-  dicaTxt: { color: '#fff', backgroundColor: '#000b', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, fontWeight: '800', fontSize: 15, borderWidth: 1, borderColor: cores.ouro },
+  dicaTxt: { color: '#fff', backgroundColor: '#000b', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, fontWeight: '800', fontSize: 12, borderWidth: 1, borderColor: cores.ouro },
   viajando: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0a1420e0', alignItems: 'center', justifyContent: 'center', zIndex: 70 },
-  viajandoTxt: { color: cores.texto, fontSize: 22, fontWeight: '900' },
+  viajandoTxt: { color: cores.texto, fontSize: 18, fontWeight: '900' },
+});
+
+// Mini-mapa: mostra as ilhas dos clãs, você (seta) e a missão (estrela)
+const TAM = 118, ESC = TAM / 1200;
+function MiniMapa({ alvo }: { alvo?: [number, number] }) {
+  const px = (x: number) => TAM / 2 + x * ESC;
+  const rot = (Math.atan2(Math.sin(cameraInfo.yaw), Math.cos(cameraInfo.yaw)) * 180) / Math.PI;
+  return (
+    <View style={mm.caixa} pointerEvents="none">
+      {ILHAS.map((i) => (
+        <View key={i.id} style={[mm.ilha, { left: px(i.centro[0]) - i.raio * ESC, top: px(i.centro[1]) - i.raio * ESC, width: i.raio * ESC * 2, height: i.raio * ESC * 2, borderRadius: i.raio * ESC, borderColor: i.cor ?? '#d9c27a', backgroundColor: (i.cor ?? '#6f8f4a') + '88' }]} />
+      ))}
+      {ILHAS.filter((i) => i.id !== 'principal').map((i) => (
+        <Text key={i.id + 't'} style={[mm.nome, { left: px(i.centro[0]) - 30, top: px(i.centro[1]) - 5 }]}>{i.dono === 'jogador' ? 'SEU CLÃ' : i.nome.replace('Ilha d', '').replace(/^[oa]s? /, '').toUpperCase()}</Text>
+      ))}
+      {alvo && <Text style={[mm.alvo, { left: px(alvo[0]) - 5, top: px(alvo[1]) - 7 }]}>★</Text>}
+      <Text style={[mm.eu, { left: px(jogadorPos.x) - 5, top: px(jogadorPos.z) - 7, transform: [{ rotate: `${180 - rot}deg` }] }]}>▲</Text>
+    </View>
+  );
+}
+const mm = StyleSheet.create({
+  caixa: { position: 'absolute', top: 76, left: 10, width: TAM, height: TAM, borderRadius: 10, backgroundColor: '#1b3a55cc', borderWidth: 1, borderColor: '#e8b64a88', overflow: 'hidden' },
+  ilha: { position: 'absolute', borderWidth: 1 },
+  nome: { position: 'absolute', width: 60, textAlign: 'center', color: '#fff', fontSize: 6, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
+  alvo: { position: 'absolute', color: '#ffd36b', fontSize: 11, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
+  eu: { position: 'absolute', color: '#fff', fontSize: 10, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
 });

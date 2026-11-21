@@ -7,7 +7,7 @@ import { View, PanResponder, Pressable, Text, StyleSheet, Platform } from 'react
 import { entrada } from '../game/input';
 import { useJogo } from '../state/store';
 
-const RAIO = 55;
+const RAIO = 44;
 const SENS_TOQUE = 1.9;   // quanto a câmera gira por pixel arrastado (multiplica a sensibilidade das Configurações)
 
 type Botao = 'pular' | 'atacar' | 'furtivo' | 'interagir' | 'visaoAguia';
@@ -25,11 +25,11 @@ function BotaoAcao({ txt, k, grande }: { txt: string; k: Botao; grande?: boolean
 // ---------- Web / PWA (celular): toques múltiplos de verdade ----------
 // Botões em arco em volta do ATACAR, com ícone e nome (posição a partir do canto inferior direito)
 const BOTOES: { k: Botao; txt: string; nome: string; tam: number; right: number; bottom: number; cor: string }[] = [
-  { k: 'atacar', txt: '⚔️', nome: 'ATACAR', tam: 104, right: 30, bottom: 30, cor: '#a83226' },
-  { k: 'pular', txt: '⬆️', nome: 'PULAR', tam: 70, right: 150, bottom: 18, cor: '#2c5d8f' },
-  { k: 'furtivo', txt: '🥷', nome: 'AGACHAR', tam: 66, right: 160, bottom: 104, cor: '#3d3d46' },
-  { k: 'interagir', txt: '🐎', nome: 'USAR', tam: 62, right: 112, bottom: 180, cor: '#5b7a2f' },
-  { k: 'visaoAguia', txt: '🦅', nome: 'VISÃO', tam: 62, right: 26, bottom: 156, cor: '#8a6420' },
+  { k: 'atacar', txt: '⚔️', nome: 'ATACAR', tam: 76, right: 22, bottom: 22, cor: '#a83226' },
+  { k: 'pular', txt: '⬆️', nome: 'PULAR', tam: 52, right: 108, bottom: 14, cor: '#2c5d8f' },
+  { k: 'furtivo', txt: '🥷', nome: 'AGACHAR', tam: 48, right: 116, bottom: 76, cor: '#3d3d46' },
+  { k: 'interagir', txt: '🐎', nome: 'USAR', tam: 46, right: 82, bottom: 132, cor: '#5b7a2f' },
+  { k: 'visaoAguia', txt: '🦅', nome: 'VISÃO', tam: 46, right: 20, bottom: 114, cor: '#8a6420' },
 ];
 
 function BotaoVisual({ b, apertado, id }: { b: (typeof BOTOES)[number]; apertado?: boolean; id?: string }) {
@@ -39,7 +39,7 @@ function BotaoVisual({ b, apertado, id }: { b: (typeof BOTOES)[number]; apertado
       backgroundColor: apertado ? '#e8b64acc' : b.cor + 'cc', transform: [{ scale: apertado ? 0.9 : 1 }],
     }]}>
       <Text selectable={false} style={[s.botaoIcone, { fontSize: b.tam * 0.34 }]}>{b.txt}</Text>
-      <Text selectable={false} style={[s.botaoNome, { fontSize: b.tam > 90 ? 13 : 10 }]}>{b.nome}</Text>
+      <Text selectable={false} style={[s.botaoNome, { fontSize: b.tam > 70 ? 10 : 8 }]}>{b.nome}</Text>
     </View>
   );
 }
@@ -182,11 +182,11 @@ export function Controles() {
 
 const s = StyleSheet.create({
   areaCamera: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '58%' },
-  joy: { position: 'absolute', left: 40, bottom: 40, width: RAIO * 2 + 30, height: RAIO * 2 + 30, borderRadius: 999, backgroundColor: '#0005', borderWidth: 2, borderColor: '#e8b64a66', alignItems: 'center', justifyContent: 'center' },
-  knob: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#e8b64acc' },
-  dicaCam: { position: 'absolute', right: 320, bottom: 30, color: '#f3eadb99', fontSize: 12 },
+  joy: { position: 'absolute', left: 30, bottom: 30, width: RAIO * 2 + 30, height: RAIO * 2 + 30, borderRadius: 999, backgroundColor: '#0005', borderWidth: 2, borderColor: '#e8b64a66', alignItems: 'center', justifyContent: 'center' },
+  knob: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#e8b64acc' },
+  dicaCam: { position: 'absolute', right: 240, bottom: 30, color: '#f3eadb99', fontSize: 12 },
   botoes: { position: 'absolute', right: 30, bottom: 30, width: 200, flexDirection: 'row', flexWrap: 'wrap-reverse', gap: 10, justifyContent: 'flex-end' },
-  areaBotoes: { position: 'absolute', right: 0, bottom: 0, width: 300, height: 290 },
+  areaBotoes: { position: 'absolute', right: 0, bottom: 0, width: 220, height: 215 },
   botao: { position: 'absolute', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#f3d48aaa',
     shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
   botaoIcone: { color: '#fff', lineHeight: undefined as any, pointerEvents: 'none' } as any,

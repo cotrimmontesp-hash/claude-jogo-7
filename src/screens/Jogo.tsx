@@ -39,7 +39,7 @@ export function Jogo() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
-      <Canvas shadows dpr={PRESETS[config.qualidade].dpr} gl={{ antialias: config.qualidade !== 'baixo' }} camera={{ fov: 55, near: 0.1, far: PRESETS[config.qualidade].distancia, position: [0, 5, 8] }}>
+      <Canvas shadows dpr={PRESETS[config.qualidade].dpr} gl={{ antialias: config.qualidade !== 'baixo' }} camera={{ fov: 55, near: 0.1, far: 1100, position: [0, 5, 8] }}>
         <Mundo />
       </Canvas>
       <HUD onPausar={() => setPausado(true)} />

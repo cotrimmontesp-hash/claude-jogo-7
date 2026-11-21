@@ -15,7 +15,7 @@ import { MONTARIAS } from '../data/mounts';
 import { enviarEstadoJogador } from '../net/client';
 import { Graficos } from './Graficos';
 import { PRESETS, ORDEM } from './qualidade';
-import { LIMITE_MUNDO, LUGAR } from './mapa';
+import { LIMITE_MUNDO, LUGAR, ILHAS } from './mapa';
 import { HistoriaMundo, danoNoChefe } from './HistoriaMundo';
 import { Moradores } from './Moradores';
 import { pedidoTeleporte } from './teleporte';
@@ -474,6 +474,7 @@ export function Mundo() {
       <Suspense fallback={null}><Batalha /></Suspense>
       <HistoriaMundo />
       <SomMundo />
+      <FaroisClas />
       <LogicaCasas />
       <Suspense fallback={null}><Interior /></Suspense>
       <Moradores quantidade={qualidade === 'baixo' ? 8 : 14} />
@@ -521,4 +522,20 @@ function SomMundo() {
     atualizarAmbiente({ distMar, distFogo, distRio: dentro ? 999 : distRio(x, z), hora: p?.horaDoDia ?? 12, combate, montado: !!p?.montado });
   });
   return null;
+}
+
+// Faróis coloridos nas ilhas dos clãs: dá para ver de longe para onde remar
+function FaroisClas() {
+  const ref = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => { ref.current?.children.forEach((c, i) => { const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial; if (m) m.opacity = 0.32 + Math.sin(clock.elapsedTime * 1.5 + i) * 0.08; }); });
+  return (
+    <group ref={ref}>
+      {ILHAS.filter((i) => i.cor).map((i) => (
+        <mesh key={i.id} position={[i.centro[0], altura(i.centro[0], i.centro[1]) + 70, i.centro[1]]}>
+          <cylinderGeometry args={[1.6, 4.5, 140, 12, 1, true]} />
+          <meshBasicMaterial color={i.cor} transparent opacity={0.35} fog={false} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </group>
+  );
 }
