@@ -41,8 +41,10 @@ function clipsMixamo(base: THREE.AnimationClip[], perfil: Perfil) {
     const c = orig.clone(); c.name = nossa;
     c.tracks.forEach((t) => {
       if (/Hips\.position$/.test(t.name) && deles !== 'pular' && deles !== 'rolar' && deles !== 'caindo') {
-        const v = t.values; const x0 = v[0], z0 = v[2];
-        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; }
+        // no esqueleto do Mixamo o eixo 0 é o lado, o 1 é a frente e o 2 é a altura:
+        // trava lado e frente (o jogo é que move o personagem) e mantém o balanço da altura
+        const v = t.values; const x0 = v[0], y0 = v[1];
+        for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 1] = y0; }
       }
     });
     return [c];
