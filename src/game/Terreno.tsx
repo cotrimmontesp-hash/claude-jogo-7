@@ -32,7 +32,7 @@ export function altura(x: number, z: number) {
 }
 
 const ss = THREE.MathUtils.smoothstep;
-const ARQ = ['grama', 'terra', 'pedra', 'areia', 'floresta'] as const;
+const ARQ = ['grama', 'terra', 'pedra', 'areia', 'floresta', 'calcada'] as const;
 
 function criarMaterial(tex: Record<string, THREE.Texture>) {
   const m = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, vertexColors: true });
@@ -40,8 +40,8 @@ function criarMaterial(tex: Record<string, THREE.Texture>) {
     for (const k of ARQ) { sh.uniforms[`t_${k}`] = { value: tex[`${k}_cor`] }; sh.uniforms[`n_${k}`] = { value: tex[`${k}_nor`] }; }
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        attribute vec4 peso; attribute float peso2;
-        varying vec4 vPeso; varying float vPeso2; varying vec3 vPosM; varying vec3 vNorM;`)
+        attribute vec4 peso; attribute vec2 peso2;
+        varying vec4 vPeso; varying vec2 vPeso2; varying vec3 vPosM; varying vec3 vNorM;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vPeso = peso; vPeso2 = peso2;
         vPosM = (modelMatrix * vec4(position, 1.0)).xyz;
@@ -50,21 +50,21 @@ function criarMaterial(tex: Record<string, THREE.Texture>) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         ${uni}
-        varying vec4 vPeso; varying float vPeso2; varying vec3 vPosM; varying vec3 vNorM;
+        varying vec4 vPeso; varying vec2 vPeso2; varying vec3 vPosM; varying vec3 vNorM;
         // duas escalas misturadas para não aparecer a repetição da textura
         vec3 amostra(sampler2D t, vec2 uv) { return mix(texture2D(t, uv).rgb, texture2D(t, uv * 0.23 + 0.37).rgb, 0.4); }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec2 uvT = vPosM.xz * 0.16;
-        float soma = vPeso.x + vPeso.y + vPeso.z + vPeso.w + vPeso2;
-        vec4 w = vPeso / max(soma, 1e-3); float w5 = vPeso2 / max(soma, 1e-3);
+        float soma = vPeso.x + vPeso.y + vPeso.z + vPeso.w + vPeso2.x + vPeso2.y;
+        vec4 w = vPeso / max(soma, 1e-3); float w5 = vPeso2.x / max(soma, 1e-3); float w6 = vPeso2.y / max(soma, 1e-3);
         vec3 corT = amostra(t_grama, uvT) * w.x + amostra(t_terra, uvT * 1.4) * w.y + amostra(t_pedra, uvT * 0.35) * w.z
-                  + amostra(t_areia, uvT * 1.2) * w.w + amostra(t_floresta, uvT * 1.1) * w5;
+                  + amostra(t_areia, uvT * 1.2) * w.w + amostra(t_floresta, uvT * 1.1) * w5 + texture2D(t_calcada, vPosM.xz * 0.45).rgb * w6;
         diffuseColor.rgb *= corT;`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         {
           vec3 nm = (texture2D(n_grama, uvT).xyz * 2.0 - 1.0) * w.x + (texture2D(n_terra, uvT * 1.4).xyz * 2.0 - 1.0) * w.y
                   + (texture2D(n_pedra, uvT * 0.35).xyz * 2.0 - 1.0) * w.z + (texture2D(n_areia, uvT * 1.2).xyz * 2.0 - 1.0) * w.w
-                  + (texture2D(n_floresta, uvT * 1.1).xyz * 2.0 - 1.0) * w5;
+                  + (texture2D(n_floresta, uvT * 1.1).xyz * 2.0 - 1.0) * w5 + (texture2D(n_calcada, vPosM.xz * 0.45).xyz * 2.0 - 1.0) * w6;
           vec3 nW = normalize(vNorM + vec3(nm.x, 0.0, -nm.y) * 0.9);
           normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
         }`);
@@ -73,7 +73,8 @@ function criarMaterial(tex: Record<string, THREE.Texture>) {
   return m;
 }
 
-const URLS = Object.fromEntries(ARQ.flatMap((k) => [[`${k}_cor`, textura(`ph/${k}_cor.jpg`)], [`${k}_nor`, textura(`ph/${k}_nor.jpg`)]])) as Record<string, string>;
+const pasta = (k: string) => (k === 'calcada' ? 'casa' : 'ph');
+const URLS = Object.fromEntries(ARQ.flatMap((k) => [[`${k}_cor`, textura(`${pasta(k)}/${k}_cor.jpg`)], [`${k}_nor`, textura(`${pasta(k)}/${k}_nor.jpg`)]])) as Record<string, string>;
 
 export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
   const tex = useTexture(URLS) as unknown as Record<string, THREE.Texture>;
@@ -89,7 +90,7 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
     const g = new THREE.PlaneGeometry(TAM_MUNDO, TAM_MUNDO, segmentos, segmentos);
     g.rotateX(-Math.PI / 2);
     const pos = g.attributes.position as THREE.BufferAttribute;
-    const peso = new Float32Array(pos.count * 4), peso2 = new Float32Array(pos.count), cores = new Float32Array(pos.count * 3);
+    const peso = new Float32Array(pos.count * 4), peso2 = new Float32Array(pos.count * 2), cores = new Float32Array(pos.count * 3);
     const c = new THREE.Color(), branco = new THREE.Color(2.2, 2.25, 2.4);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = altura(x, z);
@@ -98,19 +99,20 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
       let grama = 1, terra = 0;
       let floresta = ss(d, 55, 80) * ss(n, -0.2, 0.3) * 0.9;                  // chão de floresta fora da vila
       terra = Math.max(terra, 1 - ss(distEstrada(x, z), 1.8, 3.6));           // estrada
-      terra = Math.max(terra, 1 - ss(d, 10, 15));                              // praça
+      const calcada = 1 - ss(d, 13, 16);                                       // praça calçada de pedra (pé-de-moleque)
       terra = Math.max(terra, ss(n, 0.45, 0.6) * (1 - ss(d, 15, 60)) * 0.6);   // manchas de terra na vila
       const areia = 1 - ss(distRio(x, z), 6, 11);
       const pedra = ss(h, 11, 22);
       const neve = ss(h, 30, 40);
-      const outros = Math.max(terra, areia, pedra);
+      terra *= 1 - calcada;
+      const outros = Math.max(terra, areia, pedra, calcada);
       grama *= 1 - outros; floresta *= 1 - outros;
-      peso.set([grama, terra, pedra, areia], i * 4); peso2[i] = floresta;
+      peso.set([grama, terra, pedra, areia], i * 4); peso2[i * 2] = floresta; peso2[i * 2 + 1] = calcada;
       c.setRGB(1, 1, 1).multiplyScalar(0.93 + n * 0.1).lerp(branco, neve);   // variação suave + neve nos picos
       cores.set([c.r, c.g, c.b], i * 3);
     }
     g.setAttribute('peso', new THREE.BufferAttribute(peso, 4));
-    g.setAttribute('peso2', new THREE.BufferAttribute(peso2, 1));
+    g.setAttribute('peso2', new THREE.BufferAttribute(peso2, 2));
     g.setAttribute('color', new THREE.BufferAttribute(cores, 3));
     g.computeVertexNormals();
     return g;

@@ -10,6 +10,7 @@ import { useJogo } from '../state/store';
 import { PRESETS } from './qualidade';
 import { aplicarVento } from './Efeitos';
 import { Floresta } from './Arvores';
+import { Casas, type CasaPos, type TipoCasa } from './Casas';
 
 export interface Transf { p: [number, number, number]; r: number; s: number }
 
@@ -183,6 +184,26 @@ function Nuvens() {
 
 const EH_ARVORE = /natureza\/(trees_|tree_single)/;
 
+// Construções do pacote estilizado que viram casas coloniais realistas
+const CASA_DE: Record<string, TipoCasa> = {
+  'cenario/home_A_red': 'terrea', 'cenario/home_A_yellow': 'terrea', 'cenario/home_B_red': 'sobrado', 'cenario/home_B_blue': 'sobrado',
+  'cenario/tavern_red': 'venda', 'cenario/market_yellow': 'venda', 'cenario/blacksmith_red': 'oficina', 'cenario/church_red': 'igreja', 'cenario/destroyed': 'ruina',
+};
+function casasRealistas(L: Record<string, Transf[]>): CasaPos[] {
+  const out: CasaPos[] = [];
+  for (const [k, lista] of Object.entries(L)) {
+    const tipo = CASA_DE[k]; if (!tipo) continue;
+    for (const t of lista) {
+      const [x, , z] = t.p, d = Math.hypot(x, z);
+      // na vila a fachada olha para a praça; fora dela mantém a direção original
+      const r = d < 70 && tipo !== 'igreja' ? Math.atan2(-x, -z) : tipo === 'igreja' ? Math.atan2(-x, -z) : t.r;
+      const y = Math.min(altura(x, z), altura(x + 3, z + 3), altura(x - 3, z - 3)) - 0.25;
+      out.push({ tipo, p: [x, y, z], r, s: tipo === 'igreja' ? 1 : 0.92 + ((Math.abs(x * 13 + z * 7) | 0) % 10) / 60 });
+    }
+  }
+  return out;
+}
+
 // As árvores do pacote estilizado viram árvores realistas geradas pelo jogo (cada "bosque" vira 2–3 árvores)
 function arvoresRealistas(L: Record<string, Transf[]>) {
   const rnd = semente(4242); const out: Transf[] = [];
@@ -203,13 +224,15 @@ function arvoresRealistas(L: Record<string, Transf[]>) {
 export function Cenario() {
   const layout = useMemo(gerarLayout, []);
   const arvores = useMemo(() => arvoresRealistas(layout), [layout]);
+  const casas = useMemo(() => casasRealistas(layout), [layout]);
   const capitulo = useJogo((s) => s.progresso?.capitulo ?? 1);
   const qualidade = useJogo((s) => s.config.qualidade);
   const sombraArvores = PRESETS[qualidade].sombra >= 2048;   // árvores com sombra só no Alto/Ultra
   return (
     <>
       <Suspense fallback={null}><Floresta lista={arvores} sombra={sombraArvores} densidade={qualidade === 'baixo' ? 0.45 : qualidade === 'medio' ? 0.75 : 1} /></Suspense>
-      {Object.entries(layout).filter(([arq]) => !EH_ARVORE.test(arq)).map(([arq, lista]) => (
+      <Suspense fallback={null}><Casas lista={casas} /></Suspense>
+      {Object.entries(layout).filter(([arq]) => !EH_ARVORE.test(arq) && !CASA_DE[arq]).map(([arq, lista]) => (
         <Instancias key={arq} arquivo={arq} lista={lista} sombra={!arq.includes('trees') && !arq.includes('mountain') && !arq.includes('hills') ? true : sombraArvores} />
       ))}
       {capitulo <= 1 && CASAS_EM_CHAMAS.map(([x, z], i) => <Fogo key={i} pos={[x, altura(x, z), z]} />)}
