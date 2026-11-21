@@ -1,3 +1,4 @@
+import { tocar } from './som';
 // Pedidos de teleporte (canoa entre ilhas, invasões) e menu de viagem.
 import * as THREE from 'three';
 import { create } from 'zustand';
@@ -25,6 +26,7 @@ export const useViagem = create<EstadoViagem>((set) => ({
   abrir: (origem) => set({ aberto: true, origem }),
   fechar: () => set({ aberto: false }),
   viajar: (destino) => {
+    tocar('canoa');
     const il = ILHAS.find((i) => i.id === destino)!;
     set({ aberto: false, viajando: il.nome });
     setTimeout(() => { teleportar(pontoDoCais(destino)); }, 1400);       // "remando..."

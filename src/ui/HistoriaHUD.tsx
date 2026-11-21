@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useJogo } from '../state/store';
 import { HISTORIA, missaoAtual, useHistoria } from '../game/historia';
 import { useViagem } from '../game/teleporte';
+import { useInterior } from '../game/Interiores';
 import { jogadorPos, cameraInfo } from '../game/Mundo';
 import { ILHAS, ilhaDe } from '../game/mapa';
 import { cores } from './tema';
@@ -12,6 +13,7 @@ export function HistoriaHUD() {
   const p = useJogo((s) => s.progresso);
   const { dialogo, indiceFala, contagem, chefe, aviso, avancar } = useHistoria();
   const viagem = useViagem();
+  const dicaCasa = useInterior((s) => s.dica);
 
   // teclado: Enter/Espaço/E avançam a conversa
   useEffect(() => {
@@ -19,6 +21,13 @@ export function HistoriaHUD() {
     const k = (e: KeyboardEvent) => { if (useHistoria.getState().dialogo && ['Enter', ' ', 'e', 'E'].includes(e.key)) { e.preventDefault(); useHistoria.getState().avancar(); } };
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, []);
+
+  // a conversa passa sozinha (no PC o mouse fica preso no jogo e não dá para clicar na caixa)
+  useEffect(() => {
+    const f = dialogo?.[indiceFala]; if (!f) return;
+    const t = setTimeout(() => useHistoria.getState().avancar(), Math.max(3500, f.texto.length * 65));
+    return () => clearTimeout(t);
+  }, [dialogo, indiceFala]);
 
   if (!p) return null;
   const historia = p.modo.startsWith('historia');
@@ -64,6 +73,8 @@ export function HistoriaHUD() {
 
       {/* aviso de missão concluída */}
       {!!aviso && <View style={s.aviso} pointerEvents="none"><Text style={s.avisoTxt}>{aviso}</Text></View>}
+
+      {!!dicaCasa && !fala && <View style={s.dicaCasa} pointerEvents="none"><Text style={s.dicaTxt}>{dicaCasa}</Text></View>}
 
       {/* diálogo */}
       {fala && (
@@ -113,6 +124,8 @@ const s = StyleSheet.create({
   menuTitulo: { color: cores.ouro, fontWeight: '900', fontSize: 18, textAlign: 'center' },
   opcao: { backgroundColor: '#2b2117', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: cores.ouroEscuro },
   opcaoTxt: { color: cores.texto, fontWeight: '800' },
+  dicaCasa: { position: 'absolute', bottom: '30%', left: 0, right: 0, alignItems: 'center' },
+  dicaTxt: { color: '#fff', backgroundColor: '#000b', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, fontWeight: '800', fontSize: 15, borderWidth: 1, borderColor: cores.ouro },
   viajando: { ...StyleSheet.absoluteFillObject, backgroundColor: '#0a1420e0', alignItems: 'center', justifyContent: 'center', zIndex: 70 },
   viajandoTxt: { color: cores.texto, fontSize: 22, fontWeight: '900' },
 });

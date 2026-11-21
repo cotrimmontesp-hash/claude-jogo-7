@@ -11,6 +11,7 @@ import { PRESETS } from './qualidade';
 import { aplicarVento } from './Efeitos';
 import { Floresta } from './Arvores';
 import { Casas, type CasaPos, type TipoCasa } from './Casas';
+import { registrarCasas } from './Interiores';
 import { ILHAS, LUGAR } from './mapa';
 
 export interface Transf { p: [number, number, number]; r: number; s: number }
@@ -272,7 +273,7 @@ function arvoresRealistas(L: Record<string, Transf[]>) {
 export function Cenario() {
   const layout = useMemo(gerarLayout, []);
   const arvores = useMemo(() => arvoresRealistas(layout), [layout]);
-  const casas = useMemo(() => casasRealistas(layout), [layout]);
+  const casas = useMemo(() => { const c = casasRealistas(layout); registrarCasas(c); return c; }, [layout]);
   const capitulo = useJogo((s) => s.progresso?.capitulo ?? 1);
   const qualidade = useJogo((s) => s.config.qualidade);
   const sombraArvores = PRESETS[qualidade].sombra >= 2048;   // árvores com sombra só no Alto/Ultra

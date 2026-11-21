@@ -14,11 +14,13 @@ import { useJogo } from '../state/store';
 // posição do chefe (o Mundo usa para aplicar o dano do jogador)
 export const chefePos = new THREE.Vector3(1e9, 0, 0);
 export function danoNoChefe(pos: THREE.Vector3, alcance: number, dano: number) {
-  const c = useHistoria.getState().chefe; if (!c || c.vida <= 0) return;
+  const c = useHistoria.getState().chefe; if (!c || c.vida <= 0) return false;
   if (chefePos.distanceTo(pos) < alcance + 1.2 * c.def.escala) {
     const vida = c.vida - dano; useHistoria.setState({ chefe: { ...c, vida } });
     if (vida <= 0) setTimeout(concluirMissao, 1200);
+    return true;
   }
+  return false;
 }
 
 const pontosColeta = (m: Missao) => Array.from({ length: m.quantidade ?? 1 }, (_, i) => {
@@ -123,10 +125,22 @@ export function HistoriaMundo() {
     const clique = entrada.interagir && !apertou.current; apertou.current = entrada.interagir;
     const alvo = new THREE.Vector3(m.local[0], 0, m.local[1]);
     const dist = Math.hypot(jogadorPos.x - alvo.x, jogadorPos.z - alvo.z);
+    // chegou na luz: a missão de ir / pegar conta na hora, mesmo com a conversa aberta
+    const fecharFala = () => { if (h.dialogo) useHistoria.setState({ dialogo: null, indiceFala: 0 }); };
+    if (m.tipo === 'ir' && dist < Math.max(9, m.raio ?? 10)) { fecharFala(); concluirMissao(); return; }
+    if (m.tipo === 'coletar') {
+      pontos.forEach((p, i) => {
+        if (!h.coletados.includes(i) && Math.hypot(p.x - jogadorPos.x, p.z - jogadorPos.z) < 3.2) {
+          const c = [...useHistoria.getState().coletados, i]; useHistoria.setState({ coletados: c, contagem: c.length });
+          if (c.length >= pontos.length) { fecharFala(); concluirMissao(); }
+        }
+      });
+      return;
+    }
+    if (m.tipo === 'falar' && !esperandoFala.current && dist < 4.5) { esperandoFala.current = true; h.abrirDialogo(m.antes ?? [{ quem: m.npc ?? '', texto: '...' }]); return; }
     if (h.dialogo) return;                                     // espera terminar a conversa
     if (esperandoFala.current) { esperandoFala.current = false; concluirMissao(); return; }
     switch (m.tipo) {
-      case 'ir': if (dist < (m.raio ?? 10)) concluirMissao(); break;
       case 'coletar':
         if (clique) pontos.forEach((p, i) => {
           if (!h.coletados.includes(i) && p.distanceTo(jogadorPos) < 3) {

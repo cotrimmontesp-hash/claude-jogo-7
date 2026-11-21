@@ -24,6 +24,11 @@ import { Batalha } from './Batalha';
 import { Agua, Grama, Particulas, RelogioVento } from './Efeitos';
 import { verificarInvasao, useBatalha } from './claLogica';
 import { modelo, ESCALA, MODELOS_HEROI, modeloArma } from './modelos';
+import { Interior, LogicaCasas, colidirCasas, limitarInterior, dentroDeCasa, posicaoParaSalvar, useInterior, INTERIOR } from './Interiores';
+import { tocar, atualizarAmbiente, definirVolume, prepararSom } from './som';
+import { distRio } from './Terreno';
+import { CASAS_EM_CHAMAS } from './Cenario';
+import { useHistoria } from './historia';
 
 const VEL_ANDAR = 2.6, VEL_CORRER = 6.2, VEL_FURTIVO = 1.5, GRAVIDADE = 24, PULO = 8.5;
 const DURACAO_DIA = 36 * 60; // 24 min reais = 1 dia no jogo
@@ -103,7 +108,7 @@ const DURACAO_GOLPE = [0.52, 0.56, 0.78];
 
 function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcance: number, dano: number) => void; alvoPerto: (p: THREE.Vector3, raio: number) => THREE.Vector3 | null }) {
   const ref = useRef<THREE.Group>(null);
-  const velY = useRef(0), noChao = useRef(true), golpe = useRef(0), envio = useRef(0);
+  const velY = useRef(0), noChao = useRef(true), golpe = useRef(0), envio = useRef(0), passoDist = useRef(0);
   const combo = useRef(0), desdeUltimo = useRef(9), danoEm = useRef(-1), duracaoAtual = useRef(0.5);
   const [gatilho, setGatilho] = useState(0);
   const [anim, setAnim] = useState<Anim>('Idle');
@@ -124,7 +129,10 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
   useFrame((_, dt) => {
     const g = ref.current; if (!g) return;
     dt = Math.min(dt, 0.05);
-    if (pedidoTeleporte.alvo) { g.position.copy(pedidoTeleporte.alvo); pedidoTeleporte.alvo = null; velY.current = 0; }   // canoa / invasão
+    if (pedidoTeleporte.alvo) {
+      g.position.copy(pedidoTeleporte.alvo); pedidoTeleporte.alvo = null; velY.current = 0;
+      if (Math.hypot(g.position.x - INTERIOR.x, g.position.z - INTERIOR.z) > 60 && dentroDeCasa()) useInterior.setState({ casa: null, dica: '' });
+    }   // canoa / invasão
     const { x, y } = entrada.mover;
     let dir = new THREE.Vector3();
     if (modo === 'lateral') dir.set(x, 0, 0);
@@ -140,17 +148,23 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
     if (intens > 0.05 && !(atacando && golpe.current > duracaoAtual.current * 0.4)) {
       const antes = g.position.clone();
       g.position.addScaledVector(dir.normalize(), vel * intens * dt);
-      if (altura(g.position.x, g.position.z) < -3.2) g.position.copy(antes);   // mar fundo: só de canoa (cais)
+      if (noChao.current) {                                               // passos / galope
+        passoDist.current += vel * intens * dt;
+        const passoLen = mont ? (entrada.correr ? 3.4 : 2.2) : entrada.correr ? 2.1 : entrada.furtivo ? 1.1 : 1.5;
+        if (passoDist.current > passoLen) { passoDist.current = 0; tocar(mont ? 'galope' : g.position.y < ALTURA_AGUA - 0.3 ? 'passoAgua' : 'passo', entrada.furtivo ? 0.4 : 1); }
+      }
+      if (!dentroDeCasa() && altura(g.position.x, g.position.z) < -3.2) g.position.copy(antes);   // mar fundo: só de canoa (cais)
       const alvoRot = Math.atan2(dir.x, dir.z);
       let dif = alvoRot - g.rotation.y; dif = Math.atan2(Math.sin(dif), Math.cos(dif));
       g.rotation.y += dif * Math.min(1, dt * 12);
     }
     g.position.x = THREE.MathUtils.clamp(g.position.x, -LIMITE, LIMITE); g.position.z = THREE.MathUtils.clamp(g.position.z, -LIMITE, LIMITE);
     if (modo === 'lateral') g.position.z = THREE.MathUtils.lerp(g.position.z, 0, 0.1);
+    if (dentroDeCasa()) limitarInterior(g.position); else colidirCasas(g.position);   // paredes sólidas
 
     // pulo, gravidade e chão com relevo (não afunda no rio)
-    const chao = Math.max(altura(g.position.x, g.position.z), ALTURA_AGUA - 0.9);
-    if (entrada.pular && noChao.current && !mont) { velY.current = PULO; noChao.current = false; }
+    const chao = dentroDeCasa() ? INTERIOR.y : Math.max(altura(g.position.x, g.position.z), ALTURA_AGUA - 0.9);
+    if (entrada.pular && noChao.current && !mont) { velY.current = PULO; noChao.current = false; tocar('pulo'); }
     velY.current -= GRAVIDADE * dt; g.position.y += velY.current * dt;
     if (g.position.y <= chao) { g.position.y = chao; velY.current = 0; noChao.current = true; }
 
@@ -167,6 +181,7 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
       if (alvo) g.rotation.y = Math.atan2(alvo.x - g.position.x, alvo.z - g.position.z);
       else if (modo === 'terceira' && intens < 0.05) g.rotation.y = yawCamera(camera);   // sem alvo: golpeia para onde a câmera olha
       setGatilho((n) => n + 1);
+      tocar(combo.current === 2 ? 'espadaForte' : 'espada');
     }
     if (golpe.current > 0) {
       const frente = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y));
@@ -345,14 +360,14 @@ export function Mundo() {
     return melhor;
   };
   const atacar = (pos: THREE.Vector3, alcance: number, dano: number) => {
-    danoNoChefe(pos, alcance, dano);
+    let acertou = danoNoChefe(pos, alcance, dano);
     // guardas do Conselho nas batalhas do clã
     for (const c of useBatalha.getState().combatentes) {
-      if (c.lado === 'inimigo' && c.vida > 0 && new THREE.Vector3(...c.pos).distanceTo(pos) < alcance + 0.8) c.vida -= dano * 1.4;
+      if (c.lado === 'inimigo' && c.vida > 0 && new THREE.Vector3(...c.pos).distanceTo(pos) < alcance + 0.8) { c.vida -= dano * 1.4; acertou = true; }
     }
     for (const a of animais) {
       if (a.vida <= 0 || a.pos.distanceTo(pos) > alcance + 0.8) continue;
-      a.vida -= dano;
+      a.vida -= dano; acertou = true;
       if (a.vida <= 0) {
         animalAbatido(a.def.id);                                          // conta para as missões de caça
         const ganhos: Partial<Record<Material, number>> = {};
@@ -365,6 +380,7 @@ export function Mundo() {
         setTimeout(() => { a.vida = a.def.vida; }, 90_000);
       } else if (a.def.comportamento !== 'agressivo') a.alvo.copy(a.pos).add(a.pos.clone().sub(jogadorPos).setY(0).normalize().multiplyScalar(14));
     }
+    if (acertou) tocar('acerto');
   };
 
   useFrame((_, dt) => {
@@ -388,7 +404,7 @@ export function Mundo() {
       const energia = Math.max(0, Math.min(100, p.energia + (entrada.correr && !p.montado ? -dt * 2 : dt * 1.2)));
       const vida = fome === 0 || sede === 0 ? Math.max(0, p.vida - dt * 0.5) : Math.min(100, p.vida + dt * 0.25);
       return { horaDoDia: hora, fome, sede, energia, vida, tempoJogado: p.tempoJogado + dt,
-        diasSobrevividos: p.diasSobrevividos + (novoDia ? 1 : 0), posicao: jogadorPos.toArray() as [number, number, number] };
+        diasSobrevividos: p.diasSobrevividos + (novoDia ? 1 : 0), posicao: posicaoParaSalvar() };
     });
 
     // sol / lua: luz forte e quente de dia, azulada e suave de noite (sem ficar tudo preto)
@@ -457,8 +473,52 @@ export function Mundo() {
       ))}
       <Suspense fallback={null}><Batalha /></Suspense>
       <HistoriaMundo />
+      <SomMundo />
+      <LogicaCasas />
+      <Suspense fallback={null}><Interior /></Suspense>
       <Moradores quantidade={qualidade === 'baixo' ? 8 : 14} />
       <Suspense fallback={null}><Jogador onAtacar={atacar} alvoPerto={alvoPerto} /></Suspense>
     </>
   );
+}
+
+// Som do mundo: ambiente (mar, fogo, rio, pássaros, grilos), música e avisos (dano, missão, chefe, conversa).
+function SomMundo() {
+  const acum = useRef(0);
+  useEffect(() => {
+    prepararSom();
+    definirVolume(useJogo.getState().config.volume);
+    let vidaAnt = useJogo.getState().progresso?.vida ?? 100, ultDano = 0;
+    const u1 = useJogo.subscribe((s) => {
+      definirVolume(s.config.volume);
+      const v = s.progresso?.vida ?? 100;
+      if (v < vidaAnt - 0.5 && performance.now() - ultDano > 450) { ultDano = performance.now(); tocar(v <= 0 ? 'morte' : 'dano'); }
+      vidaAnt = v;
+    });
+    let ant = useHistoria.getState();
+    const u2 = useHistoria.subscribe((h) => {
+      if (h.aviso && h.aviso !== ant.aviso && h.aviso.startsWith('✔')) tocar('missao');
+      if (h.chefe && !ant.chefe) tocar('chefe');
+      if (h.dialogo && (h.dialogo !== ant.dialogo || h.indiceFala !== ant.indiceFala)) tocar('fala');
+      ant = h;
+    });
+    return () => { u1(); u2(); };
+  }, []);
+  useFrame((_, dt) => {
+    acum.current += dt; if (acum.current < 0.25) return; acum.current = 0;
+    const { x, z } = jogadorPos; const p = useJogo.getState().progresso;
+    let distMar = 60;
+    for (const r of [6, 15, 30, 50]) {
+      let achou = false;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; if (altura(x + Math.cos(a) * r, z + Math.sin(a) * r) < ALTURA_AGUA - 1) { achou = true; break; } }
+      if (achou) { distMar = r; break; }
+    }
+    if (altura(x, z) < ALTURA_AGUA) distMar = 0;
+    const dentro = dentroDeCasa(); if (dentro) distMar = 999;
+    let distFogo = 999;
+    if ((p?.capitulo ?? 1) <= 1) for (const [fx, fz] of CASAS_EM_CHAMAS) distFogo = Math.min(distFogo, Math.hypot(fx - x, fz - z));
+    const combate = useBatalha.getState().combatentes.some((c) => c.lado === 'inimigo' && c.vida > 0) || !!(useHistoria.getState().chefe?.vida);
+    atualizarAmbiente({ distMar, distFogo, distRio: dentro ? 999 : distRio(x, z), hora: p?.horaDoDia ?? 12, combate, montado: !!p?.montado });
+  });
+  return null;
 }

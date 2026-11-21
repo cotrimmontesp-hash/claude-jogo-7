@@ -6,6 +6,7 @@ import { PRESETS } from '../game/qualidade';
 import { definirAvisoQualidade } from '../game/Mundo';
 import { HUD } from '../ui/HUD';
 import { HistoriaHUD } from '../ui/HistoriaHUD';
+import { pausarSom } from '../game/som';
 import { Controles } from '../ui/Controles';
 import { ligarTecladoMouse } from '../game/input';
 import { iniciarAutoSave, salvarAgora } from '../state/save';
@@ -17,6 +18,8 @@ import { deitarTela } from '../ui/Orientacao';
 export function Jogo() {
   const { irPara, config, setConfig } = useJogo();
   const [pausado, setPausado] = useState(false);
+  useEffect(() => { pausarSom(pausado); }, [pausado]);
+  useEffect(() => () => pausarSom(true), []);
   const [aviso, setAviso] = useState('');
   const [carregado, setCarregado] = useState(0);
 
