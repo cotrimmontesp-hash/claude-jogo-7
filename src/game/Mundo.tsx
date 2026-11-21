@@ -16,6 +16,7 @@ import { enviarEstadoJogador } from '../net/client';
 import { Graficos } from './Graficos';
 import { PRESETS } from './qualidade';
 import { Batalha } from './Batalha';
+import { Agua, Grama, Particulas, RelogioVento } from './Efeitos';
 import { verificarInvasao } from './claLogica';
 import { modelo, ESCALA, MODELOS_HEROI, modeloArma } from './modelos';
 
@@ -354,7 +355,11 @@ export function Mundo() {
       <directionalLight ref={sol} castShadow intensity={3} position={[40, 70, 30]}
         shadow-mapSize={[q.sombra, q.sombra]} shadow-bias={-0.0004} shadow-normalBias={0.04}
         shadow-camera-left={-45} shadow-camera-right={45} shadow-camera-top={45} shadow-camera-bottom={-45} shadow-camera-near={1} shadow-camera-far={220} />
-      <Terreno segmentos={qualidade === 'baixo' ? 120 : qualidade === 'medio' ? 180 : 260} />
+      <RelogioVento />
+      <Suspense fallback={null}><Terreno segmentos={qualidade === 'baixo' ? 120 : qualidade === 'medio' ? 180 : 260} /></Suspense>
+      <Suspense fallback={null}><Agua /></Suspense>
+      {q.grama > 0 && <Grama quantidade={q.grama} />}
+      <Particulas />
       <Suspense fallback={null}><Cenario /></Suspense>
       <Suspense fallback={null}><Montarias /></Suspense>
       <Suspense fallback={null}><Aves /></Suspense>

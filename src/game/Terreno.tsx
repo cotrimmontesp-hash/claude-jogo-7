@@ -1,5 +1,7 @@
 // Terreno com relevo suave, cores variadas (grama, terra, estrada) e rio.
-import React, { useMemo } from 'react';
+import React, { useLayoutEffect, useMemo } from 'react';
+import { useTexture } from './drei';
+import { textura } from './modelos';
 import * as THREE from 'three';
 
 export const TAM_MUNDO = 420;
@@ -49,6 +51,7 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
       const praca = Math.hypot(x, z); if (praca < 14) c.lerp(C.terra, THREE.MathUtils.smoothstep(14 - praca, 0, 4) * 0.85);
       const rio = distRio(x, z); if (rio < 11) c.lerp(C.areia, 1 - THREE.MathUtils.smoothstep(rio, 6, 11));
       if (h > 12) c.lerp(C.pedra, THREE.MathUtils.smoothstep(h, 12, 22));
+      c.multiplyScalar(1.3);   // compensa a textura de detalhe (que escurece um pouco)
       cores.set([c.r, c.g, c.b], i * 3);
     }
     g.setAttribute('color', new THREE.BufferAttribute(cores, 3));
@@ -56,16 +59,12 @@ export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
     return g;
   }, [segmentos]);
 
+  // textura de detalhe (folhinhas de grama/terra) repetida pelo chão
+  const detalhe = useTexture(textura('grama_detalhe.jpg'));
+  useLayoutEffect(() => { detalhe.wrapS = detalhe.wrapT = THREE.RepeatWrapping; detalhe.repeat.set(70, 70); detalhe.anisotropy = 8; detalhe.colorSpace = THREE.SRGBColorSpace; detalhe.needsUpdate = true; }, [detalhe]);
   return (
-    <>
-      <mesh geometry={geo} receiveShadow>
-        <meshStandardMaterial vertexColors roughness={0.95} metalness={0} />
-      </mesh>
-      {/* rio */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[70, ALTURA_AGUA, 0]}>
-        <planeGeometry args={[40, TAM_MUNDO]} />
-        <meshStandardMaterial color="#3b7fa0" transparent opacity={0.82} roughness={0.08} metalness={0.3} />
-      </mesh>
-    </>
+    <mesh geometry={geo} receiveShadow>
+      <meshStandardMaterial vertexColors map={detalhe} roughness={0.95} metalness={0} />
+    </mesh>
   );
 }

@@ -8,6 +8,7 @@ import { modelo, ESCALA } from './modelos';
 import { altura, distEstrada, distRio } from './Terreno';
 import { useJogo } from '../state/store';
 import { PRESETS } from './qualidade';
+import { aplicarVento } from './Efeitos';
 
 export interface Transf { p: [number, number, number]; r: number; s: number }
 
@@ -20,9 +21,10 @@ function Instancias({ arquivo, lista, sombra = true }: { arquivo: string; lista:
   const partes = useMemo(() => {
     scene.updateMatrixWorld(true);
     const out: { geo: THREE.BufferGeometry; mat: THREE.Material; m: THREE.Matrix4 }[] = [];
-    scene.traverse((o: any) => { if (o.isMesh) out.push({ geo: o.geometry, mat: o.material, m: o.matrixWorld.clone() }); });
+    const balanca = /tree|cloud/.test(arquivo);
+    scene.traverse((o: any) => { if (o.isMesh) out.push({ geo: o.geometry, mat: balanca ? aplicarVento(o.material, /cloud/.test(arquivo) ? 0.15 : 0.06, 1) : o.material, m: o.matrixWorld.clone() }); });
     return out;
-  }, [scene]);
+  }, [scene, arquivo]);
   return <>{partes.map((pt, i) => <ParteInstanciada key={i} {...pt} lista={lista} sombra={sombra} />)}</>;
 }
 

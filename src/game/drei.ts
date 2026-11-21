@@ -1,1 +1,1 @@
-export { useGLTF, useAnimations } from '@react-three/drei';
+export { useGLTF, useAnimations, useTexture, Stars } from '@react-three/drei';

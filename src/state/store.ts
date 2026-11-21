@@ -3,6 +3,7 @@ import type { Material } from '../data/items';
 import type { Classe } from '../data/cla';
 import type { Heroi } from '../data/characters';
 import type { ModoJogo } from '../data/modes';
+import { qualidadeInicial } from '../game/qualidade';
 
 export type ModoCamera = 'terceira' | 'cima' | 'lateral';
 
@@ -78,7 +79,7 @@ interface Estado {
 
 export const useJogo = create<Estado>((set) => ({
   tela: 'menu', slot: 0, progresso: null,
-  config: { camera: 'terceira', volume: 0.8, sensibilidade: 1, vozAtiva: true, qualidade: 'medio' },
+  config: { camera: 'terceira', volume: 0.8, sensibilidade: 1, vozAtiva: true, qualidade: qualidadeInicial() },
   modoEscolhido: 'historia_solo', setModo: (modoEscolhido) => set({ modoEscolhido }),
   irPara: (tela) => set({ tela }),
   setProgresso: (progresso) => set({ progresso }),
