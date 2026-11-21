@@ -23,16 +23,30 @@ function BotaoAcao({ txt, k, grande }: { txt: string; k: Botao; grande?: boolean
 }
 
 // ---------- Web / PWA (celular): toques múltiplos de verdade ----------
+const BOTOES: { k: Botao; txt: string; grande?: boolean }[] = [
+  { k: 'atacar', txt: '⚔', grande: true }, { k: 'pular', txt: '⤒' }, { k: 'furtivo', txt: '🫥' }, { k: 'interagir', txt: '✋' }, { k: 'visaoAguia', txt: '👁' },
+];
+
 function ControlesWeb() {
   const [joy, setJoy] = useState<{ cx: number; cy: number; kx: number; ky: number } | null>(null);
-  const dedos = useRef(new Map<number, { tipo: 'joy' | 'cam'; cx: number; cy: number; lx: number; ly: number }>());
+  const [apertados, setApertados] = useState<Record<string, boolean>>({});
+  const dedos = useRef(new Map<number, { tipo: 'joy' | 'cam' | 'botao'; cx: number; cy: number; lx: number; ly: number; botao?: Botao }>());
 
   useEffect(() => {
     // só os dedos que encostam direto na tela do jogo (o 3D); botões e menus continuam funcionando normalmente
     const ehBotao = (el: EventTarget | null) => (el as HTMLElement)?.tagName !== 'CANVAS' || !!(el as HTMLElement)?.closest?.('[data-botao]');
+    const botaoDe = (el: EventTarget | null) => {
+      const id = (el as HTMLElement)?.closest?.('[id^="botao-"]')?.id; return id ? (id.slice(6) as Botao) : null;
+    };
     const inicio = (e: TouchEvent) => {
       for (const t of Array.from(e.changedTouches)) {
-        if (ehBotao(t.target)) continue;
+        const b = botaoDe(t.target);
+        if (b) {                                              // dedo em um botão de ação
+          entrada[b] = true; setApertados((a) => ({ ...a, [b]: true }));
+          dedos.current.set(t.identifier, { tipo: 'botao', botao: b, cx: 0, cy: 0, lx: 0, ly: 0 });
+          e.preventDefault(); continue;
+        }
+        if (ehBotao(t.target)) continue;                      // pausa, clã e menus: funcionam normalmente
         const esquerda = t.clientX < window.innerWidth * 0.42;
         dedos.current.set(t.identifier, { tipo: esquerda ? 'joy' : 'cam', cx: t.clientX, cy: t.clientY, lx: t.clientX, ly: t.clientY });
         if (esquerda) setJoy({ cx: t.clientX, cy: t.clientY, kx: 0, ky: 0 });
@@ -42,7 +56,7 @@ function ControlesWeb() {
     const mover = (e: TouchEvent) => {
       const sens = useJogo.getState().config.sensibilidade;
       for (const t of Array.from(e.changedTouches)) {
-        const d = dedos.current.get(t.identifier); if (!d) continue;
+        const d = dedos.current.get(t.identifier); if (!d || d.tipo === 'botao') continue;
         if (d.tipo === 'cam') {
           entrada.olhar.dx += (t.clientX - d.lx) * SENS_TOQUE * sens;
           entrada.olhar.dy += (t.clientY - d.ly) * SENS_TOQUE * sens;
@@ -62,7 +76,17 @@ function ControlesWeb() {
       for (const t of Array.from(e.changedTouches)) {
         const d = dedos.current.get(t.identifier); if (!d) continue;
         if (d.tipo === 'joy') { entrada.mover = { x: 0, y: 0 }; entrada.correr = false; setJoy(null); }
+        if (d.tipo === 'botao' && d.botao) {
+          // toque rápido: segura o botão por pelo menos 1/8 de segundo para o jogo não perder o aperto
+          const b = d.botao; setApertados((a) => ({ ...a, [b]: false }));
+          setTimeout(() => { if (![...dedos.current.values()].some((x) => x.botao === b)) entrada[b] = false; }, 130);
+        }
         dedos.current.delete(t.identifier);
+      }
+      // segurança: se não sobrou nenhum dedo na tela, solta tudo
+      if (e.touches.length === 0) {
+        dedos.current.clear(); entrada.mover = { x: 0, y: 0 }; entrada.correr = false; setJoy(null);
+        for (const b of BOTOES) entrada[b.k] = false; setApertados({});
       }
     };
     const opts = { passive: false } as AddEventListenerOptions;
@@ -84,11 +108,11 @@ function ControlesWeb() {
       </View>
       {!joy && <Text pointerEvents="none" style={s.dicaCam}>arraste aqui para girar a câmera →</Text>}
       <View style={s.botoes} pointerEvents="box-none">
-        <BotaoAcao txt="⚔" k="atacar" grande />
-        <BotaoAcao txt="⤒" k="pular" />
-        <BotaoAcao txt="🫥" k="furtivo" />
-        <BotaoAcao txt="✋" k="interagir" />
-        <BotaoAcao txt="👁" k="visaoAguia" />
+        {BOTOES.map((b) => (
+          <View key={b.k} nativeID={`botao-${b.k}`} style={[s.btn, b.grande && s.btnG, apertados[b.k] && s.btnApertado]}>
+            <Text style={s.btnTxt} selectable={false}>{b.txt}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -150,5 +174,6 @@ const s = StyleSheet.create({
   botoes: { position: 'absolute', right: 30, bottom: 30, width: 200, flexDirection: 'row', flexWrap: 'wrap-reverse', gap: 10, justifyContent: 'flex-end' },
   btn: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#0007', borderWidth: 2, borderColor: '#e8b64a88', alignItems: 'center', justifyContent: 'center' },
   btnG: { width: 78, height: 78, borderRadius: 39, backgroundColor: '#8a2a20cc' },
-  btnTxt: { color: '#fff', fontSize: 22 },
+  btnTxt: { color: '#fff', fontSize: 22, pointerEvents: 'none' } as any,
+  btnApertado: { transform: [{ scale: 0.9 }], backgroundColor: '#e8b64a99' },
 });
