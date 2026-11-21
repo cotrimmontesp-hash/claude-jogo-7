@@ -1,6 +1,6 @@
 // Cenário: aldeia, fazenda, Refúgio do Clã, floresta, pedras, montanhas, nuvens e fogo.
 // Objetos repetidos usam "instancing" (uma só chamada de desenho por tipo) para rodar bem no celular.
-import React, { useLayoutEffect, useMemo, useRef } from 'react';
+import React, { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { useGLTF } from './drei';
@@ -9,6 +9,7 @@ import { altura, distEstrada, distRio } from './Terreno';
 import { useJogo } from '../state/store';
 import { PRESETS } from './qualidade';
 import { aplicarVento } from './Efeitos';
+import { Floresta } from './Arvores';
 
 export interface Transf { p: [number, number, number]; r: number; s: number }
 
@@ -181,14 +182,35 @@ function Nuvens() {
   );
 }
 
+const EH_ARVORE = /natureza\/(trees_|tree_single)/;
+
+// As árvores do pacote estilizado viram árvores realistas geradas pelo jogo (cada "bosque" vira 2–3 árvores)
+function arvoresRealistas(L: Record<string, Transf[]>) {
+  const rnd = semente(4242); const out: Transf[] = [];
+  for (const [k, lista] of Object.entries(L)) {
+    if (!EH_ARVORE.test(k)) continue;
+    const bosque = /trees_/.test(k);
+    for (const t of lista) {
+      const n = bosque ? 2 + Math.floor(rnd() * 2) : 1;
+      for (let i = 0; i < n; i++) {
+        const x = t.p[0] + (bosque ? (rnd() - 0.5) * 9 : 0), z = t.p[2] + (bosque ? (rnd() - 0.5) * 9 : 0);
+        out.push({ p: [x, altura(x, z) - 0.2, z], r: rnd() * 6.28, s: (t.s / ESCALA.arvore) * (0.75 + rnd() * 0.5) });
+      }
+    }
+  }
+  return out;
+}
+
 export function Cenario() {
   const layout = useMemo(gerarLayout, []);
+  const arvores = useMemo(() => arvoresRealistas(layout), [layout]);
   const capitulo = useJogo((s) => s.progresso?.capitulo ?? 1);
   const qualidade = useJogo((s) => s.config.qualidade);
   const sombraArvores = PRESETS[qualidade].sombra >= 2048;   // árvores com sombra só no Alto/Ultra
   return (
     <>
-      {Object.entries(layout).map(([arq, lista]) => (
+      <Suspense fallback={null}><Floresta lista={arvores} sombra={sombraArvores} densidade={qualidade === 'baixo' ? 0.45 : qualidade === 'medio' ? 0.75 : 1} /></Suspense>
+      {Object.entries(layout).filter(([arq]) => !EH_ARVORE.test(arq)).map(([arq, lista]) => (
         <Instancias key={arq} arquivo={arq} lista={lista} sombra={!arq.includes('trees') && !arq.includes('mountain') && !arq.includes('hills') ? true : sombraArvores} />
       ))}
       {capitulo <= 1 && CASAS_EM_CHAMAS.map(([x, z], i) => <Fogo key={i} pos={[x, altura(x, z), z]} />)}
