@@ -12,6 +12,7 @@ import { Forja } from './src/screens/Forja';
 import { Cla } from './src/screens/Cla';
 import { conectar } from './src/net/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Protecao } from './src/ui/Protecao';
 
 export default function App() {
   const tela = useJogo((s) => s.tela);
@@ -21,11 +22,12 @@ export default function App() {
     if (Platform.OS !== 'web') ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
     // configurações também ficam salvas
     AsyncStorage.getItem('sombra:config').then((c) => c && useJogo.getState().setConfig(JSON.parse(c)));
-    AsyncStorage.getItem('sombra:nome').then((n) => conectar(n ?? `Jogador${Math.floor(Math.random() * 9999)}`));
+    AsyncStorage.getItem('sombra:nome').then((n) => conectar(n ?? `Jogador${Math.floor(Math.random() * 9999)}`)).catch(() => {});
   }, []);
   useEffect(() => { AsyncStorage.setItem('sombra:config', JSON.stringify(config)); }, [config]);
 
   return (
+    <Protecao>
     <View style={{ flex: 1, backgroundColor: '#120d08' }}>
       <StatusBar hidden />
       {tela === 'menu' && <Lobby />}
@@ -36,5 +38,6 @@ export default function App() {
       {tela === 'forja' && <Forja />}
       {tela === 'cla' && <Cla />}
     </View>
+    </Protecao>
   );
 }

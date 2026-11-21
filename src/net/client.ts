@@ -33,7 +33,7 @@ export const ouvir = (f: Ouvinte) => { ouvintes.add(f); return () => ouvintes.de
 
 export async function conectar(nome: string) {
   let token = await AsyncStorage.getItem('sombra:token');
-  ws = new WebSocket(SERVIDOR);
+  try { ws = new WebSocket(SERVIDOR); } catch { return; } // sem servidor: joga offline
   ws.onopen = () => { tentativas = 0; enviar('entrar', { nome, token }); };
   ws.onclose = () => {
     useOnline.getState().set({ conectado: false });
