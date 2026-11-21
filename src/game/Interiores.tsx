@@ -6,11 +6,13 @@ import * as THREE from 'three';
 import { create } from 'zustand';
 import { useFrame, useThree } from './r3f';
 import { useTexture } from './drei';
-import { entrada } from './input';
+import { usarPendente, consumirUsar } from './input';
 import { textura } from './modelos';
 import type { CasaPos, TipoCasa } from './Casas';
 import { jogadorPos, jogadorRot } from './Mundo';
-import { pedidoTeleporte } from './teleporte';
+import { pedidoTeleporte, pontoDoCais } from './teleporte';
+import { ILHAS } from './mapa';
+const caisTerra: { x: number; z: number }[] = [];
 import { altura } from './Terreno';
 import { useJogo } from '../state/store';
 import type { Material } from '../data/items';
@@ -196,9 +198,9 @@ function usar(uso: Uso, casa: number) {
 
 /** Lógica de entrar/sair/usar e as dicas na tela. */
 export function LogicaCasas() {
-  const apertou = useRef(false), t = useRef(0);
+  const t = useRef(0);
   useFrame((_, dt) => {
-    const clique = entrada.interagir && !apertou.current; apertou.current = entrada.interagir;
+    const clique = usarPendente();
     t.current += dt; if (!clique && t.current < 0.2) return; t.current = 0;
     const { casa, dica } = useInterior.getState();
     if (casa === null) {
@@ -207,15 +209,17 @@ export function LogicaCasas() {
         const c = casasMundo[i]; if (c.tipo === 'ruina') continue;
         const [px, pz] = portaDe(c); if (Math.hypot(px - jogadorPos.x, pz - jogadorPos.z) < 2.4) { perto = i; break; }
       }
-      if (perto >= 0 && clique) return entrar(perto);
-      const nova = perto >= 0 ? (casasMundo[perto].tipo === 'igreja' ? '⛪ USAR: entrar na igreja' : casasMundo[perto].tipo === 'oficina' ? '⚒ USAR: entrar na oficina do ferreiro' : casasMundo[perto].tipo === 'venda' ? '🍺 USAR: entrar na venda' : '🚪 USAR: entrar na casa') : '';
+      if (perto >= 0 && clique && consumirUsar()) return entrar(perto);
+      if (!caisTerra.length) ILHAS.forEach((il) => { const p = pontoDoCais(il.id); caisTerra.push({ x: p.x, z: p.z }); });
+      const noCais = perto < 0 && caisTerra.some((c) => Math.hypot(c.x - jogadorPos.x, c.z - jogadorPos.z) < 14);
+      const nova = noCais ? '🛶 USAR: pegar a canoa e ir para outra ilha' : perto >= 0 ? (casasMundo[perto].tipo === 'igreja' ? '⛪ USAR: entrar na igreja' : casasMundo[perto].tipo === 'oficina' ? '⚒ USAR: entrar na oficina do ferreiro' : casasMundo[perto].tipo === 'venda' ? '🍺 USAR: entrar na venda' : '🚪 USAR: entrar na casa') : '';
       if (nova !== dica && (!dica || !dica.startsWith('🌅'))) useInterior.setState({ dica: nova });
       return;
     }
     const pts = pontosDa(casasMundo[casa].tipo);
     let melhor: Ponto | null = null, md = 2.2;
     for (const pt of pts) { const d = Math.hypot(INTERIOR.x + pt.p[0] - jogadorPos.x, INTERIOR.z + pt.p[1] - jogadorPos.z); if (d < md) { md = d; melhor = pt; } }
-    if (melhor && clique) return usar(melhor.uso, casa);
+    if (melhor && clique && consumirUsar()) return usar(melhor.uso, casa);
     const nova = melhor?.texto ?? '';
     const fixa = /^(😋|🌅|✨|🧰 Achou|O baú)/.test(dica);
     if (!fixa && nova !== dica) useInterior.setState({ dica: nova });

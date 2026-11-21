@@ -4,10 +4,11 @@ import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { altura } from './Terreno';
 import { jogadorPos } from './Mundo';
-import { entrada } from './input';
+import { usarPendente, consumirUsar } from './input';
+import { dentroDeCasa } from './Interiores';
 import { Personagem3D, type Anim } from './Personagem3D';
 import { useHistoria } from './historia';
-import { useViagem } from './teleporte';
+import { useViagem, pontoDoCais } from './teleporte';
 import { ILHAS, LUGAR } from './mapa';
 
 const NOMES = ['Seu Bento', 'Dona Rosa', 'Zé Pedro', 'Luzia', 'Seu Firmino', 'Dona Isabel', 'Raimundo', 'Benedita', 'Antônio', 'Margarida', 'Severino', 'Conceição', 'Damiana', 'Chico'];
@@ -70,20 +71,19 @@ export function Moradores({ quantidade = 14 }: { quantidade?: number }) {
     return { nome: NOMES[i % NOMES.length], arq: i % 2 ? 'mixamo/tome' : 'mixamo/ines', cor: ROUPAS[i % ROUPAS.length],
       pos: new THREE.Vector3(x, altura(x, z), z), alvo: new THREE.Vector3(x, 0, z), espera: Math.random() * 3, centro, raio };
   }), [quantidade]);
-  const apertou = useRef(false);
   const viagem = useViagem;
 
+  const caisTerra = useMemo(() => ILHAS.map((il) => ({ id: il.id, p: pontoDoCais(il.id) })), []);
   useFrame(() => {
-    const clique = entrada.interagir && !apertou.current; apertou.current = entrada.interagir;
-    if (!clique || useHistoria.getState().dialogo || viagem.getState().aberto) return;
-    // canoa: perto de um cais abre o menu de viagem
-    for (const il of ILHAS) {
-      if (Math.hypot(jogadorPos.x - il.cais[0], jogadorPos.z - il.cais[1]) < 9) { viagem.getState().abrir(il.id); return; }
+    if (!usarPendente() || viagem.getState().aberto || dentroDeCasa()) return;
+    // canoa: perto do cais (na beira da praia) abre o menu de viagem
+    for (const c of caisTerra) {
+      if (Math.hypot(jogadorPos.x - c.p.x, jogadorPos.z - c.p.z) < 14 && consumirUsar()) { useHistoria.setState({ dialogo: null }); viagem.getState().abrir(c.id); return; }
     }
     // conversa com o morador mais perto
-    let perto: Morador | null = null, menor = 3;
+    let perto: Morador | null = null, menor = 3.5;
     for (const m of moradores) { const d = m.pos.distanceTo(jogadorPos); if (d < menor) { menor = d; perto = m; } }
-    if (perto) useHistoria.getState().abrirDialogo([{ quem: perto.nome, texto: FALAS[(Math.floor(Date.now() / 1000) + perto.nome.length) % FALAS.length] }]);
+    if (perto && consumirUsar()) useHistoria.getState().abrirDialogo([{ quem: perto.nome, texto: FALAS[(Math.floor(Date.now() / 1000) + perto.nome.length) % FALAS.length] }]);
   });
 
   return (

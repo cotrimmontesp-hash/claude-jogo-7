@@ -6,7 +6,7 @@ import { useGLTF, useAnimations } from './drei';
 import { Personagem3D, type Anim } from './Personagem3D';
 import { Terreno, altura, ALTURA_AGUA } from './Terreno';
 import { Cenario, REFUGIO } from './Cenario';
-import { entrada } from './input';
+import { entrada, usarPendente, consumirUsar } from './input';
 import { useJogo, type ModoCamera } from '../state/store';
 import { ANIMAIS, type Animal } from '../data/animals';
 import { ARMAS, type Material } from '../data/items';
@@ -240,15 +240,15 @@ function Montarias() {
   const apertou = useRef(false);
 
   useFrame(({ clock }) => {
-    const clique = entrada.interagir && !apertou.current; apertou.current = entrada.interagir;
-    if (clique) {
+    if (usarPendente()) {
       if (indice !== null) {
+        consumirUsar();
         const p = jogadorPos.clone().add(new THREE.Vector3(1.6, 0, 0)); p.y = altura(p.x, p.z);
         pos.current[indice].copy(p); setIndice(null); atualizar(() => ({ montado: null }));
       } else {
         let melhor = -1, menor = 3.2;
         pos.current.forEach((p, i) => { const d = p.distanceTo(jogadorPos); if (d < menor) { menor = d; melhor = i; } });
-        if (melhor >= 0) {
+        if (melhor >= 0 && consumirUsar()) {
           const id = SPAWN_MONTARIAS[melhor].id; setIndice(melhor);
           atualizar((p) => ({ montado: id, montarias: p.montarias.includes(id) ? p.montarias : [...p.montarias, id] }));
         }

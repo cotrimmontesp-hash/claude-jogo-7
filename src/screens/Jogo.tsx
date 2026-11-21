@@ -7,6 +7,9 @@ import { definirAvisoQualidade } from '../game/Mundo';
 import { HUD } from '../ui/HUD';
 import { HistoriaHUD } from '../ui/HistoriaHUD';
 import { pausarSom } from '../game/som';
+import { useViagem } from '../game/teleporte';
+import { ilhaDe } from '../game/mapa';
+import { jogadorPos } from '../game/Mundo';
 import { Controles } from '../ui/Controles';
 import { ligarTecladoMouse } from '../game/input';
 import { iniciarAutoSave, salvarAgora } from '../state/save';
@@ -58,6 +61,7 @@ export function Jogo() {
           <Text style={s.titulo}>PAUSA</Text>
           <Botao texto="Continuar" onPress={() => setPausado(false)} />
           <Botao texto="Salvar agora" onPress={salvarManual} />
+          <Botao texto="🛶 Viajar para outra ilha" onPress={() => { setPausado(false); useViagem.getState().abrir(ilhaDe(jogadorPos.x, jogadorPos.z)?.id ?? 'principal'); }} />
           <Botao texto="⚒ Forja: evoluir arma e armadura" onPress={async () => { await salvarAgora(); irPara('forja'); }} />
           <Botao texto="⚑ Meu clã" onPress={async () => { await salvarAgora(); irPara('cla'); }} />
           <Text style={s.sub}>Câmera</Text>

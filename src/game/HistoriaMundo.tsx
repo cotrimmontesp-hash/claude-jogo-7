@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useFrame } from './r3f';
 import { altura } from './Terreno';
 import { jogadorPos } from './Mundo';
-import { entrada } from './input';
+import { entrada, usarPendente } from './input';
 import { Personagem3D, type Anim } from './Personagem3D';
 import { missaoAtual, useHistoria, iniciarMissaoSeNecessario, concluirMissao, type Missao } from './historia';
 import { useBatalha } from './claLogica';
@@ -121,7 +121,7 @@ export function HistoriaMundo() {
     if (!m || !modo.startsWith('historia')) return;
     iniciarMissaoSeNecessario();
     const h = useHistoria.getState();
-    const clique = entrada.interagir && !apertou.current; apertou.current = entrada.interagir;
+    const clique = usarPendente();
     const alvo = new THREE.Vector3(m.local[0], 0, m.local[1]);
     const dist = Math.hypot(jogadorPos.x - alvo.x, jogadorPos.z - alvo.z);
     // chegou na luz: a missão de ir / pegar conta na hora, mesmo com a conversa aberta

@@ -4,7 +4,7 @@
 // • Funciona com vários dedos ao mesmo tempo (andar + girar + atacar)
 import React, { useEffect, useRef, useState } from 'react';
 import { View, PanResponder, Pressable, Text, StyleSheet, Platform } from 'react-native';
-import { entrada } from '../game/input';
+import { entrada, apertarUsar } from '../game/input';
 import { useJogo } from '../state/store';
 
 const RAIO = 44;
@@ -59,7 +59,7 @@ function ControlesWeb() {
       for (const t of Array.from(e.changedTouches)) {
         const b = botaoDe(t.target);
         if (b) {                                              // dedo em um botão de ação
-          entrada[b] = true; setApertados((a) => ({ ...a, [b]: true }));
+          entrada[b] = true; if (b === 'interagir') apertarUsar(); setApertados((a) => ({ ...a, [b]: true }));
           dedos.current.set(t.identifier, { tipo: 'botao', botao: b, cx: 0, cy: 0, lx: 0, ly: 0 });
           e.preventDefault(); continue;
         }
@@ -103,7 +103,7 @@ function ControlesWeb() {
       // segurança: se não sobrou nenhum dedo na tela, solta tudo
       if (e.touches.length === 0) {
         dedos.current.clear(); entrada.mover = { x: 0, y: 0 }; entrada.correr = false; setJoy(null);
-        for (const b of BOTOES) entrada[b.k] = false; setApertados({});
+        setApertados({});   // os botões soltam sozinhos depois de 130 ms
       }
     };
     const opts = { passive: false } as AddEventListenerOptions;
@@ -162,7 +162,7 @@ function ControlesNativo() {
       </View>
       <View style={s.areaBotoes} pointerEvents="box-none">
         {BOTOES.map((b) => (
-          <Pressable key={b.k} onPressIn={() => (entrada[b.k] = true)} onPressOut={() => setTimeout(() => (entrada[b.k] = false), 130)}
+          <Pressable key={b.k} onPressIn={() => { entrada[b.k] = true; if (b.k === 'interagir') apertarUsar(); }} onPressOut={() => setTimeout(() => (entrada[b.k] = false), 130)}
             style={{ position: 'absolute', right: b.right, bottom: b.bottom, width: b.tam, height: b.tam }}>
             {({ pressed }) => <BotaoVisual b={{ ...b, right: 0, bottom: 0 }} apertado={pressed} />}
           </Pressable>

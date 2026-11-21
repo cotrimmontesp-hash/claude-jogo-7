@@ -23,7 +23,7 @@ export function teleportar(v: THREE.Vector3) { pedidoTeleporte.alvo = v.clone();
 interface EstadoViagem { aberto: boolean; origem: string | null; viajando: string | null; abrir: (origem: string) => void; fechar: () => void; viajar: (destino: string) => void }
 export const useViagem = create<EstadoViagem>((set) => ({
   aberto: false, origem: null, viajando: null,
-  abrir: (origem) => set({ aberto: true, origem }),
+  abrir: (origem) => { if (typeof document !== 'undefined') document.exitPointerLock?.(); set({ aberto: true, origem }); },
   fechar: () => set({ aberto: false }),
   viajar: (destino) => {
     tocar('canoa');

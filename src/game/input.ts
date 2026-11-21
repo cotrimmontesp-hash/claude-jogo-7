@@ -11,6 +11,12 @@ export const entrada = {
 
 const teclas = new Set<string>();
 
+// USAR: cada aperto vale por meio segundo, mesmo que o dedo solte rápido ou o jogo esteja lento.
+let usarEm = 0;
+export function apertarUsar() { usarEm = Date.now(); }
+export function usarPendente() { return usarEm > 0 && Date.now() - usarEm < 500; }
+export function consumirUsar() { if (!usarPendente()) return false; usarEm = 0; return true; }
+
 function atualizarTeclado() {
   const x = (teclas.has('d') ? 1 : 0) - (teclas.has('a') ? 1 : 0);
   const y = (teclas.has('w') ? 1 : 0) - (teclas.has('s') ? 1 : 0);
@@ -25,7 +31,7 @@ function atualizarTeclado() {
 
 export function ligarTecladoMouse() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return () => {};
-  const down = (e: KeyboardEvent) => { teclas.add(e.key.toLowerCase()); atualizarTeclado(); };
+  const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (k === 'e' && !e.repeat) apertarUsar(); teclas.add(k); atualizarTeclado(); };
   const up = (e: KeyboardEvent) => { teclas.delete(e.key.toLowerCase()); atualizarTeclado(); };
   // Clique na tela do jogo prende o mouse: mexer o mouse gira a câmera (Esc solta).
   const alvoValido = (e: Event) => (e.target as HTMLElement)?.tagName === 'CANVAS';

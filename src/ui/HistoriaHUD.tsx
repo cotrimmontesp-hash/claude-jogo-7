@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useJogo } from '../state/store';
 import { HISTORIA, missaoAtual, useHistoria } from '../game/historia';
-import { useViagem } from '../game/teleporte';
+import { useViagem, pontoDoCais } from '../game/teleporte';
 import { useInterior, COMERCIANTE, comprar, type Oferta } from '../game/Interiores';
 import { jogadorPos, cameraInfo } from '../game/Mundo';
 import { ILHAS, ilhaDe } from '../game/mapa';
@@ -40,7 +40,7 @@ export function HistoriaHUD() {
     // objetivo em outra ilha: a seta aponta para o cais da ilha onde você está
     const aqui = ilhaDe(jogadorPos.x, jogadorPos.z), la = ilhaDe(m.local[0], m.local[1]);
     let alvo = m.local;
-    if (aqui && la && aqui.id !== la.id) { alvo = aqui.cais; dica = `🛶 Vá até o cais e reme para: ${la.nome}`; }
+    if (aqui && la && aqui.id !== la.id) { const pc = pontoDoCais(aqui.id); alvo = [pc.x, pc.z]; dica = `🛶 Vá até o cais e reme para: ${la.nome}`; }
     const dx = alvo[0] - jogadorPos.x, dz = alvo[1] - jogadorPos.z;
     dist = Math.hypot(dx, dz);
     seta = -(Math.atan2(dx, dz) - cameraInfo.yaw) * (180 / Math.PI);
