@@ -23,9 +23,26 @@ function BotaoAcao({ txt, k, grande }: { txt: string; k: Botao; grande?: boolean
 }
 
 // ---------- Web / PWA (celular): toques múltiplos de verdade ----------
-const BOTOES: { k: Botao; txt: string; grande?: boolean }[] = [
-  { k: 'atacar', txt: '⚔', grande: true }, { k: 'pular', txt: '⤒' }, { k: 'furtivo', txt: '🫥' }, { k: 'interagir', txt: '✋' }, { k: 'visaoAguia', txt: '👁' },
+// Botões em arco em volta do ATACAR, com ícone e nome (posição a partir do canto inferior direito)
+const BOTOES: { k: Botao; txt: string; nome: string; tam: number; right: number; bottom: number; cor: string }[] = [
+  { k: 'atacar', txt: '⚔️', nome: 'ATACAR', tam: 104, right: 30, bottom: 30, cor: '#a83226' },
+  { k: 'pular', txt: '⬆️', nome: 'PULAR', tam: 70, right: 150, bottom: 18, cor: '#2c5d8f' },
+  { k: 'furtivo', txt: '🥷', nome: 'AGACHAR', tam: 66, right: 160, bottom: 104, cor: '#3d3d46' },
+  { k: 'interagir', txt: '🐎', nome: 'USAR', tam: 62, right: 112, bottom: 180, cor: '#5b7a2f' },
+  { k: 'visaoAguia', txt: '🦅', nome: 'VISÃO', tam: 62, right: 26, bottom: 156, cor: '#8a6420' },
 ];
+
+function BotaoVisual({ b, apertado, id }: { b: (typeof BOTOES)[number]; apertado?: boolean; id?: string }) {
+  return (
+    <View nativeID={id} pointerEvents={id ? 'auto' : 'none'} style={[s.botao, {
+      width: b.tam, height: b.tam, borderRadius: b.tam / 2, right: b.right, bottom: b.bottom,
+      backgroundColor: apertado ? '#e8b64acc' : b.cor + 'cc', transform: [{ scale: apertado ? 0.9 : 1 }],
+    }]}>
+      <Text selectable={false} style={[s.botaoIcone, { fontSize: b.tam * 0.34 }]}>{b.txt}</Text>
+      <Text selectable={false} style={[s.botaoNome, { fontSize: b.tam > 90 ? 13 : 10 }]}>{b.nome}</Text>
+    </View>
+  );
+}
 
 function ControlesWeb() {
   const [joy, setJoy] = useState<{ cx: number; cy: number; kx: number; ky: number } | null>(null);
@@ -107,12 +124,8 @@ function ControlesWeb() {
         <View style={[s.knob, { transform: [{ translateX: joy?.kx ?? 0 }, { translateY: joy?.ky ?? 0 }] }]} />
       </View>
       {!joy && <Text pointerEvents="none" style={s.dicaCam}>arraste aqui para girar a câmera →</Text>}
-      <View style={s.botoes} pointerEvents="box-none">
-        {BOTOES.map((b) => (
-          <View key={b.k} nativeID={`botao-${b.k}`} style={[s.btn, b.grande && s.btnG, apertados[b.k] && s.btnApertado]}>
-            <Text style={s.btnTxt} selectable={false}>{b.txt}</Text>
-          </View>
-        ))}
+      <View style={s.areaBotoes} pointerEvents="box-none">
+        {BOTOES.map((b) => <BotaoVisual key={b.k} b={b} apertado={apertados[b.k]} id={`botao-${b.k}`} />)}
       </View>
     </View>
   );
@@ -147,12 +160,13 @@ function ControlesNativo() {
       <View style={s.joy} {...joy.panHandlers}>
         <View style={[s.knob, { transform: [{ translateX: knob.x }, { translateY: knob.y }] }]} />
       </View>
-      <View style={s.botoes} pointerEvents="box-none">
-        <BotaoAcao txt="⚔" k="atacar" grande />
-        <BotaoAcao txt="⤒" k="pular" />
-        <BotaoAcao txt="🫥" k="furtivo" />
-        <BotaoAcao txt="✋" k="interagir" />
-        <BotaoAcao txt="👁" k="visaoAguia" />
+      <View style={s.areaBotoes} pointerEvents="box-none">
+        {BOTOES.map((b) => (
+          <Pressable key={b.k} onPressIn={() => (entrada[b.k] = true)} onPressOut={() => setTimeout(() => (entrada[b.k] = false), 130)}
+            style={{ position: 'absolute', right: b.right, bottom: b.bottom, width: b.tam, height: b.tam }}>
+            {({ pressed }) => <BotaoVisual b={{ ...b, right: 0, bottom: 0 }} apertado={pressed} />}
+          </Pressable>
+        ))}
       </View>
     </View>
   );
@@ -170,8 +184,13 @@ const s = StyleSheet.create({
   areaCamera: { position: 'absolute', right: 0, top: 0, bottom: 0, width: '58%' },
   joy: { position: 'absolute', left: 40, bottom: 40, width: RAIO * 2 + 30, height: RAIO * 2 + 30, borderRadius: 999, backgroundColor: '#0005', borderWidth: 2, borderColor: '#e8b64a66', alignItems: 'center', justifyContent: 'center' },
   knob: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#e8b64acc' },
-  dicaCam: { position: 'absolute', right: 250, bottom: 30, color: '#f3eadb99', fontSize: 12 },
+  dicaCam: { position: 'absolute', right: 320, bottom: 30, color: '#f3eadb99', fontSize: 12 },
   botoes: { position: 'absolute', right: 30, bottom: 30, width: 200, flexDirection: 'row', flexWrap: 'wrap-reverse', gap: 10, justifyContent: 'flex-end' },
+  areaBotoes: { position: 'absolute', right: 0, bottom: 0, width: 300, height: 290 },
+  botao: { position: 'absolute', alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#f3d48aaa',
+    shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  botaoIcone: { color: '#fff', lineHeight: undefined as any, pointerEvents: 'none' } as any,
+  botaoNome: { color: '#fff', fontWeight: '900', letterSpacing: 0.5, marginTop: 1, textShadowColor: '#000', textShadowRadius: 3, pointerEvents: 'none' } as any,
   btn: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#0007', borderWidth: 2, borderColor: '#e8b64a88', alignItems: 'center', justifyContent: 'center' },
   btnG: { width: 78, height: 78, borderRadius: 39, backgroundColor: '#8a2a20cc' },
   btnTxt: { color: '#fff', fontSize: 22, pointerEvents: 'none' } as any,

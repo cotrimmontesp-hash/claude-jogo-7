@@ -17,7 +17,7 @@ import { Graficos } from './Graficos';
 import { PRESETS, ORDEM } from './qualidade';
 import { Batalha } from './Batalha';
 import { Agua, Grama, Particulas, RelogioVento } from './Efeitos';
-import { verificarInvasao } from './claLogica';
+import { verificarInvasao, useBatalha } from './claLogica';
 import { modelo, ESCALA, MODELOS_HEROI, modeloArma } from './modelos';
 
 const VEL_ANDAR = 2.6, VEL_CORRER = 6.2, VEL_FURTIVO = 1.5, GRAVIDADE = 24, PULO = 8.5;
@@ -91,9 +91,15 @@ function Cavalo({ tint, escala = 1, galopando, refExterno }: { tint?: string; es
 }
 
 // ---------- Jogador ----------
-function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number, dano: number) => void }) {
+// Combo de 3 golpes: corte, golpe de cima e finalização (chute / combo de machado)
+const COMBO: Anim[] = ['1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Chop', '2H_Melee_Attack_Slice'];
+const DURACAO_GOLPE = [0.52, 0.56, 0.78];
+
+function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcance: number, dano: number) => void; alvoPerto: (p: THREE.Vector3, raio: number) => THREE.Vector3 | null }) {
   const ref = useRef<THREE.Group>(null);
   const velY = useRef(0), noChao = useRef(true), golpe = useRef(0), envio = useRef(0);
+  const combo = useRef(0), desdeUltimo = useRef(9), danoEm = useRef(-1), duracaoAtual = useRef(0.5);
+  const [gatilho, setGatilho] = useState(0);
   const [anim, setAnim] = useState<Anim>('Idle');
   const [galope, setGalope] = useState(0);
   const { camera } = useThree();
@@ -121,9 +127,10 @@ function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number,
       dir = f.multiplyScalar(y).add(r.multiplyScalar(x));
     }
     const intens = Math.min(1, dir.length());
-    const vel = mont ? (entrada.correr ? mont.velocidade : mont.velocidade * 0.4)
-      : (entrada.furtivo ? VEL_FURTIVO : entrada.correr ? VEL_CORRER : VEL_ANDAR) * heroi.bonus.agilidade;
-    if (intens > 0.05) {
+    const atacando = golpe.current > 0;
+    const vel = (mont ? (entrada.correr ? mont.velocidade : mont.velocidade * 0.4)
+      : (entrada.furtivo ? VEL_FURTIVO : entrada.correr ? VEL_CORRER : VEL_ANDAR) * heroi.bonus.agilidade) * (atacando ? 0.25 : 1);
+    if (intens > 0.05 && !(atacando && golpe.current > duracaoAtual.current * 0.4)) {
       g.position.addScaledVector(dir.normalize(), vel * intens * dt);
       const alvoRot = Math.atan2(dir.x, dir.z);
       let dif = alvoRot - g.rotation.y; dif = Math.atan2(Math.sin(dif), Math.cos(dif));
@@ -139,16 +146,33 @@ function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number,
     if (g.position.y <= chao) { g.position.y = chao; velY.current = 0; noChao.current = true; }
 
     // ataque
-    golpe.current -= dt;
-    if (entrada.atacar && golpe.current <= 0 && !mont) {
-      golpe.current = 0.65 / (arma?.velocidade ?? 1);
-      onAtacar(g.position.clone().add(new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y)).multiplyScalar(1)), (arma?.alcance ?? 1.2) + 0.8, (arma?.dano ?? 8) * heroi.bonus.forca);
+    // ---- ataque em combo ----
+    golpe.current -= dt; desdeUltimo.current += dt;
+    const velArma = Math.max(0.6, arma?.velocidade ?? 1);
+    if (entrada.atacar && golpe.current <= 0.12 && !mont) {               // dá para "emendar" o próximo golpe um pouco antes
+      combo.current = desdeUltimo.current < 0.9 ? (combo.current + 1) % 3 : 0;
+      duracaoAtual.current = DURACAO_GOLPE[combo.current] / velArma;
+      golpe.current = duracaoAtual.current; danoEm.current = duracaoAtual.current * 0.55; desdeUltimo.current = 0;
+      // mira automática: vira para o inimigo/animal mais perto
+      const alvo = alvoPerto(g.position, 4.5);
+      if (alvo) g.rotation.y = Math.atan2(alvo.x - g.position.x, alvo.z - g.position.z);
+      else if (modo === 'terceira' && intens < 0.05) g.rotation.y = yawCamera(camera);   // sem alvo: golpeia para onde a câmera olha
+      setGatilho((n) => n + 1);
+    }
+    if (golpe.current > 0) {
+      const frente = new THREE.Vector3(Math.sin(g.rotation.y), 0, Math.cos(g.rotation.y));
+      if (golpe.current > duracaoAtual.current * 0.55) g.position.addScaledVector(frente, (combo.current === 2 ? 4.2 : 3) * dt);   // investida
+      if (danoEm.current > 0 && golpe.current <= danoEm.current) {
+        danoEm.current = -1;
+        const forte = combo.current === 2 ? 1.7 : 1;
+        onAtacar(g.position.clone().addScaledVector(frente, 1.1), (arma?.alcance ?? 1.2) + 0.9, (arma?.dano ?? 8) * heroi.bonus.forca * forte);
+      }
     }
 
     // animação
     let novo: Anim;
     if (mont) novo = 'Sit_Floor_Idle';
-    else if (golpe.current > 0.25) novo = arma?.tipo === 'machado' || arma?.tipo === 'maca' ? '1H_Melee_Attack_Chop' : arma?.tipo === 'adaga' || arma?.tipo === 'lamina_oculta' ? '1H_Melee_Attack_Stab' : '1H_Melee_Attack_Slice_Diagonal';
+    else if (golpe.current > 0.02) novo = COMBO[combo.current];
     else if (!noChao.current) novo = 'Jump_Idle';
     else if (intens > 0.05) novo = entrada.furtivo ? 'Walking_C' : entrada.correr ? 'Running_A' : 'Walking_A';
     else novo = 'Idle';
@@ -161,6 +185,7 @@ function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number,
     jogadorPos.copy(g.position); jogadorRot.copy(g.rotation);
   });
 
+  const velArmaRender = Math.max(0.6, arma?.velocidade ?? 1);
   const skinCor = skin?.includes('sombra') ? '#222' : skin?.includes('irmandade') ? '#f4f1ea' : undefined;
   const tintMont = mont?.id === 'cavalo_selvagem' ? '#8b6a46' : mont?.id === 'mula' ? '#6d6257' : mont?.id === 'jumento' ? '#8f877f' : mont?.id === 'corcel_lanterna' ? '#f1e6c8' : mont?.id === 'cavalo_guerra' ? '#4a4040' : undefined;
 
@@ -168,7 +193,7 @@ function Jogador({ onAtacar }: { onAtacar: (pos: THREE.Vector3, alcance: number,
     <>
       <group ref={ref}>
         {mont && <Cavalo tint={tintMont} escala={mont.tipo === 'jumento' ? 0.75 : mont.tipo === 'mula' ? 0.88 : 1} galopando={galope} />}
-        <Personagem3D arquivo={MODELOS_HEROI[heroiId]} anim={anim} arma={mont ? null : modeloArma(armaId, arma?.tipo)}
+        <Personagem3D arquivo={MODELOS_HEROI[heroiId]} anim={anim} gatilho={gatilho} velocidadeAnim={golpe.current > 0 ? 1.5 * velArmaRender : 1} arma={mont ? null : modeloArma(armaId, arma?.tipo)}
           escudo={false} posicao={mont ? [0, 1.05, -0.1] : [0, 0, 0]} cor={skinCor} />
       </group>
       <CameraRig alvo={ref} modo={modo} />
@@ -301,7 +326,20 @@ export function Mundo() {
   // Qualidade automática: mede os quadros por segundo e baixa o gráfico se o jogo estiver lento
   const fps = useRef({ t: 0, n: 0, espera: 6, baixas: 0 });
 
+  const alvoPerto = (p: THREE.Vector3, raio: number) => {
+    let melhor: THREE.Vector3 | null = null, menor = raio;
+    for (const a of animais) { if (a.vida <= 0) continue; const d = a.pos.distanceTo(p); if (d < menor) { menor = d; melhor = a.pos; } }
+    for (const c of useBatalha.getState().combatentes) {
+      if (c.lado !== 'inimigo' || c.vida <= 0) continue;
+      const v = new THREE.Vector3(...c.pos); const d = v.distanceTo(p); if (d < menor) { menor = d; melhor = v; }
+    }
+    return melhor;
+  };
   const atacar = (pos: THREE.Vector3, alcance: number, dano: number) => {
+    // guardas do Conselho nas batalhas do clã
+    for (const c of useBatalha.getState().combatentes) {
+      if (c.lado === 'inimigo' && c.vida > 0 && new THREE.Vector3(...c.pos).distanceTo(pos) < alcance + 0.8) c.vida -= dano * 1.4;
+    }
     for (const a of animais) {
       if (a.vida <= 0 || a.pos.distanceTo(pos) > alcance + 0.8) continue;
       a.vida -= dano;
@@ -400,7 +438,7 @@ export function Mundo() {
         </group>
       ))}
       <Suspense fallback={null}><Batalha /></Suspense>
-      <Suspense fallback={null}><Jogador onAtacar={atacar} /></Suspense>
+      <Suspense fallback={null}><Jogador onAtacar={atacar} alvoPerto={alvoPerto} /></Suspense>
     </>
   );
 }

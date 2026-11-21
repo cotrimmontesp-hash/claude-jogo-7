@@ -60,12 +60,13 @@ interface Props {
   posicao?: [number, number, number];
   rotacao?: number;
   velocidadeAnim?: number;
+  gatilho?: number;                   // muda a cada golpe: reinicia a animação mesmo se for a mesma
   sombra?: boolean;
   cor?: string;                       // tom extra (skins simples / time)
 }
 
 export const Personagem3D = forwardRef<THREE.Group, Props>(function Personagem3D(
-  { arquivo, anim = 'Idle', arma, escudo, escala = ESCALA.personagem, posicao, rotacao = 0, velocidadeAnim = 1, sombra = true, cor }, ref) {
+  { arquivo, anim = 'Idle', arma, escudo, escala = ESCALA.personagem, posicao, rotacao = 0, velocidadeAnim = 1, gatilho = 0, sombra = true, cor }, ref) {
   const { scene, animations: animsProprias } = useGLTF(modelo(arquivo));
   const animsMixamo = useGLTF(modelo('mixamo/animacoes')).animations;
   const ehMixamo = arquivo.startsWith('mixamo/');
@@ -120,10 +121,11 @@ export const Personagem3D = forwardRef<THREE.Group, Props>(function Personagem3D
     nova.setLoop(umaVez ? THREE.LoopOnce : THREE.LoopRepeat, Infinity);
     nova.clampWhenFinished = /Death/.test(anim);
     nova.timeScale = velocidadeAnim;
-    nova.fadeIn(0.18).play();
-    if (velha && velha !== nova) velha.fadeOut(0.18);
+    const ataque = /Attack/.test(anim);
+    nova.fadeIn(ataque ? 0.08 : 0.18).play();
+    if (velha && velha !== nova) velha.fadeOut(ataque ? 0.08 : 0.18);
     atual.current = anim;
-  }, [anim, actions, velocidadeAnim]);
+  }, [anim, actions, velocidadeAnim, gatilho]);
 
   return (
     <group ref={ref} position={posicao} rotation={[0, rotacao, 0]}>

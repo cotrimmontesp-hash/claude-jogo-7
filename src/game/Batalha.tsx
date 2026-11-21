@@ -27,7 +27,7 @@ export function Batalha() {
   const anims = useRef<Record<string, Anim>>({});
   const [, forcar] = useState(0);
   const relogio = useRef(0);
-  const golpeHeroi = useRef(0);
+  const vidaAnterior = useRef<Record<string, number>>({});
   const fim = useRef(false);
 
   useFrame((_, dt) => {
@@ -40,11 +40,8 @@ export function Batalha() {
     let mudou = false;
     const setAnim = (uid: string, a: Anim) => { if (anims.current[uid] !== a) { anims.current[uid] = a; mudou = true; } };
 
-    golpeHeroi.current -= dt;
-    if (entrada.atacar && golpeHeroi.current <= 0) {
-      golpeHeroi.current = 0.55;
-      inimigos.forEach((e) => { if (new THREE.Vector3(...e.pos).distanceTo(jogadorPos) < 2.4) { e.vida -= dano; setAnim(e.uid, 'Hit_A'); } });
-    }
+    // o golpe do herói (combo) é aplicado pelo Mundo; aqui só mostra a reação de quem apanhou
+    inimigos.forEach((e) => { if (e.vida < (vidaAnterior.current[e.uid] ?? e.vida)) setAnim(e.uid, 'Hit_A'); vidaAnterior.current[e.uid] = e.vida; });
 
     for (const c of combatentes) {
       if (c.vida <= 0) { setAnim(c.uid, 'Death_A'); continue; }
