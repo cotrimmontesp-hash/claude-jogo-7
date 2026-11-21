@@ -6,16 +6,33 @@
     "orientation": "landscape",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#120d08",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "android": {
       "package": "com.claude.sombravilarica",
-      "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.claude.sombravilarica",
-      "infoPlist": { "NSMicrophoneUsageDescription": "Usado para a chamada de voz com seu grupo." }
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Usado para a chamada de voz com seu grupo."
+      }
     },
-    "web": { "bundler": "metro", "output": "single", "name": "Sombra de Vila Rica", "display": "fullscreen", "orientation": "landscape" },
-    "plugins": ["expo-screen-orientation"]
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Sombra de Vila Rica",
+      "display": "fullscreen",
+      "orientation": "landscape"
+    },
+    "plugins": [
+      "expo-screen-orientation",
+      "@config-plugins/react-native-webrtc"
+    ]
   }
 }

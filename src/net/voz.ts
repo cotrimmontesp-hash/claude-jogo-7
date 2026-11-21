@@ -2,8 +2,7 @@
 // Web usa o WebRTC do navegador; Android/iPhone usam react-native-webrtc (precisa de build EAS, não roda no Expo Go).
 import { Platform } from 'react-native';
 import { enviar, ouvir } from './client';
-
-const rtc: any = Platform.OS === 'web' ? globalThis : require('react-native-webrtc');
+import { rtc } from './rtc';
 const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 const pares = new Map<string, any>();
