@@ -1,5 +1,5 @@
 // PC / navegador: céu físico, névoa de horizonte, raios de sol (god rays) e pós-efeitos de cinema.
-import React, { useRef, useState } from 'react';
+import React, { Suspense, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Sky, Environment, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom, N8AO, Vignette, ToneMapping, SMAA, HueSaturation, BrightnessContrast, GodRays } from '@react-three/postprocessing';
@@ -8,6 +8,7 @@ import { useFrame } from './r3f';
 import { useJogo } from '../state/store';
 import { PRESETS } from './qualidade';
 import { corNeblina } from './ceu';
+import { textura } from './modelos';
 
 const direcaoSol = (h: number) => { const a = ((h - 6) / 12) * Math.PI; return new THREE.Vector3(Math.cos(a), Math.max(Math.sin(a), 0.04), 0.35).normalize(); };
 
@@ -39,8 +40,14 @@ export function Graficos() {
 
   return (
     <>
-      <Sky sunPosition={[sol.x, sol.y, sol.z]} turbidity={hora > 15.5 || hora < 8 ? 9 : 5} rayleigh={hora > 15.5 || hora < 8 ? 2.6 : 1.4} mieCoefficient={0.007} mieDirectionalG={0.88} />
-      <Environment preset={noite ? 'night' : 'sunset'} environmentIntensity={noite ? 0.25 : 0.5} />
+      {/* céu de foto 360° (HDRI do Poly Haven): de dia céu com nuvens, de manhã/tarde pôr do sol; também ilumina a cena */}
+      {qualidade === 'baixo' ? (
+        <Sky sunPosition={[sol.x, sol.y, sol.z]} turbidity={hora > 15.5 || hora < 8 ? 9 : 5} rayleigh={hora > 15.5 || hora < 8 ? 2.6 : 1.4} mieCoefficient={0.007} mieDirectionalG={0.88} />
+      ) : (
+        <Suspense fallback={null}><Environment files={textura(hora >= 8 && hora < 16 ? 'ph/ceu_dia.hdr' : 'ph/ceu_tarde.hdr')} background
+          backgroundIntensity={noite ? 0.06 : hora < 6.5 || hora > 18.5 ? 0.45 : 1} environmentIntensity={noite ? 0.12 : 0.55}
+          backgroundRotation={[0, Math.PI * 0.5, 0]} environmentRotation={[0, Math.PI * 0.5, 0]} /></Suspense>
+      )}
       {(hora > 18.5 || hora < 5.5) && <Stars radius={180} depth={40} count={2500} factor={5} saturation={0.2} fade speed={0.5} />}
       <fogExp2 attach="fog" args={[corNeblina(hora), densidade]} />
       {raios && <DiscoSol setRef={setDisco} />}

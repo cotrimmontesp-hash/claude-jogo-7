@@ -1,8 +1,9 @@
-// Terreno com relevo suave, cores variadas (grama, terra, estrada) e rio.
+// Terreno com relevo e texturas realistas (Poly Haven, CC0) misturadas por região:
+// grama, chão de floresta, terra com folhas (estrada/praça), areia (rio), rocha e neve (montanhas).
 import React, { useLayoutEffect, useMemo } from 'react';
+import * as THREE from 'three';
 import { useTexture } from './drei';
 import { textura } from './modelos';
-import * as THREE from 'three';
 
 export const TAM_MUNDO = 420;
 
@@ -20,8 +21,8 @@ export const ALTURA_AGUA = -1.2;
 
 export function altura(x: number, z: number) {
   const d = Math.hypot(x, z);
-  const vila = THREE.MathUtils.smoothstep(d, 22, 55);          // plano na aldeia
-  const borda = THREE.MathUtils.smoothstep(d, 115, 195) * 42 + THREE.MathUtils.smoothstep(d, 150, 200) * Math.max(0, ruido(x * 2, z * 2)) * 25;  // sobe para as montanhas
+  const vila = THREE.MathUtils.smoothstep(d, 22, 55);
+  const borda = THREE.MathUtils.smoothstep(d, 115, 195) * 42 + THREE.MathUtils.smoothstep(d, 150, 200) * Math.max(0, ruido(x * 2, z * 2)) * 25;
   let h = ruido(x, z) * 6 * vila + borda;
   const rio = distRio(x, z);
   if (rio < 9) h = THREE.MathUtils.lerp(ALTURA_AGUA - 1.4, h, THREE.MathUtils.smoothstep(rio, 3, 9));
@@ -30,42 +31,90 @@ export function altura(x: number, z: number) {
   return h;
 }
 
-const C = {
-  grama1: new THREE.Color('#5d8a3a'), grama2: new THREE.Color('#7ea446'), grama3: new THREE.Color('#47702e'),
-  terra: new THREE.Color('#9a7a4f'), neve: new THREE.Color('#f4f6fa'), areia: new THREE.Color('#c9b182'), pedra: new THREE.Color('#7d776b'),
-};
+const ss = THREE.MathUtils.smoothstep;
+const ARQ = ['grama', 'terra', 'pedra', 'areia', 'floresta'] as const;
+
+function criarMaterial(tex: Record<string, THREE.Texture>) {
+  const m = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, vertexColors: true });
+  m.onBeforeCompile = (sh) => {
+    for (const k of ARQ) { sh.uniforms[`t_${k}`] = { value: tex[`${k}_cor`] }; sh.uniforms[`n_${k}`] = { value: tex[`${k}_nor`] }; }
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute vec4 peso; attribute float peso2;
+        varying vec4 vPeso; varying float vPeso2; varying vec3 vPosM; varying vec3 vNorM;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vPeso = peso; vPeso2 = peso2;
+        vPosM = (modelMatrix * vec4(position, 1.0)).xyz;
+        vNorM = normalize(mat3(modelMatrix) * normal);`);
+    const uni = ARQ.map((k) => `uniform sampler2D t_${k}; uniform sampler2D n_${k};`).join('\n');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        ${uni}
+        varying vec4 vPeso; varying float vPeso2; varying vec3 vPosM; varying vec3 vNorM;
+        // duas escalas misturadas para não aparecer a repetição da textura
+        vec3 amostra(sampler2D t, vec2 uv) { return mix(texture2D(t, uv).rgb, texture2D(t, uv * 0.23 + 0.37).rgb, 0.4); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec2 uvT = vPosM.xz * 0.16;
+        float soma = vPeso.x + vPeso.y + vPeso.z + vPeso.w + vPeso2;
+        vec4 w = vPeso / max(soma, 1e-3); float w5 = vPeso2 / max(soma, 1e-3);
+        vec3 corT = amostra(t_grama, uvT) * w.x + amostra(t_terra, uvT * 1.4) * w.y + amostra(t_pedra, uvT * 0.35) * w.z
+                  + amostra(t_areia, uvT * 1.2) * w.w + amostra(t_floresta, uvT * 1.1) * w5;
+        diffuseColor.rgb *= corT;`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        {
+          vec3 nm = (texture2D(n_grama, uvT).xyz * 2.0 - 1.0) * w.x + (texture2D(n_terra, uvT * 1.4).xyz * 2.0 - 1.0) * w.y
+                  + (texture2D(n_pedra, uvT * 0.35).xyz * 2.0 - 1.0) * w.z + (texture2D(n_areia, uvT * 1.2).xyz * 2.0 - 1.0) * w.w
+                  + (texture2D(n_floresta, uvT * 1.1).xyz * 2.0 - 1.0) * w5;
+          vec3 nW = normalize(vNorM + vec3(nm.x, 0.0, -nm.y) * 0.9);
+          normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);
+        }`);
+  };
+  m.customProgramCacheKey = () => 'terreno-pbr';
+  return m;
+}
+
+const URLS = Object.fromEntries(ARQ.flatMap((k) => [[`${k}_cor`, textura(`ph/${k}_cor.jpg`)], [`${k}_nor`, textura(`ph/${k}_nor.jpg`)]])) as Record<string, string>;
 
 export function Terreno({ segmentos = 220 }: { segmentos?: number }) {
+  const tex = useTexture(URLS) as unknown as Record<string, THREE.Texture>;
+  useLayoutEffect(() => {
+    for (const [k, t] of Object.entries(tex)) {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+      t.colorSpace = k.endsWith('_cor') ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.needsUpdate = true;
+    }
+  }, [tex]);
+  const mat = useMemo(() => criarMaterial(tex), [tex]);
+
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(TAM_MUNDO, TAM_MUNDO, segmentos, segmentos);
     g.rotateX(-Math.PI / 2);
     const pos = g.attributes.position as THREE.BufferAttribute;
-    const cores = new Float32Array(pos.count * 3);
-    const c = new THREE.Color();
+    const peso = new Float32Array(pos.count * 4), peso2 = new Float32Array(pos.count), cores = new Float32Array(pos.count * 3);
+    const c = new THREE.Color(), branco = new THREE.Color(2.2, 2.25, 2.4);
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), z = pos.getZ(i), h = altura(x, z);
       pos.setY(i, h);
-      const n = ruido(x * 3.1, z * 3.1);
-      c.copy(C.grama1).lerp(n > 0 ? C.grama2 : C.grama3, Math.abs(n) * 1.4);
-      const est = distEstrada(x, z); if (est < 3.2) c.lerp(C.terra, 1 - est / 3.2);
-      const praca = Math.hypot(x, z); if (praca < 14) c.lerp(C.terra, THREE.MathUtils.smoothstep(14 - praca, 0, 4) * 0.85);
-      const rio = distRio(x, z); if (rio < 11) c.lerp(C.areia, 1 - THREE.MathUtils.smoothstep(rio, 6, 11));
-      if (h > 12) c.lerp(C.pedra, THREE.MathUtils.smoothstep(h, 12, 24));
-      if (h > 30) c.lerp(C.neve, THREE.MathUtils.smoothstep(h, 30, 40));   // picos nevados
-      c.multiplyScalar(1.12);   // compensa a textura de detalhe (que escurece um pouco)
+      const d = Math.hypot(x, z), n = ruido(x * 2.7, z * 2.7);
+      let grama = 1, terra = 0;
+      let floresta = ss(d, 55, 80) * ss(n, -0.2, 0.3) * 0.9;                  // chão de floresta fora da vila
+      terra = Math.max(terra, 1 - ss(distEstrada(x, z), 1.8, 3.6));           // estrada
+      terra = Math.max(terra, 1 - ss(d, 10, 15));                              // praça
+      terra = Math.max(terra, ss(n, 0.45, 0.6) * (1 - ss(d, 15, 60)) * 0.6);   // manchas de terra na vila
+      const areia = 1 - ss(distRio(x, z), 6, 11);
+      const pedra = ss(h, 11, 22);
+      const neve = ss(h, 30, 40);
+      const outros = Math.max(terra, areia, pedra);
+      grama *= 1 - outros; floresta *= 1 - outros;
+      peso.set([grama, terra, pedra, areia], i * 4); peso2[i] = floresta;
+      c.setRGB(1, 1, 1).multiplyScalar(0.93 + n * 0.1).lerp(branco, neve);   // variação suave + neve nos picos
       cores.set([c.r, c.g, c.b], i * 3);
     }
+    g.setAttribute('peso', new THREE.BufferAttribute(peso, 4));
+    g.setAttribute('peso2', new THREE.BufferAttribute(peso2, 1));
     g.setAttribute('color', new THREE.BufferAttribute(cores, 3));
     g.computeVertexNormals();
     return g;
   }, [segmentos]);
 
-  // textura de detalhe (folhinhas de grama/terra) repetida pelo chão
-  const detalhe = useTexture(textura('grama_detalhe.jpg'));
-  useLayoutEffect(() => { detalhe.wrapS = detalhe.wrapT = THREE.RepeatWrapping; detalhe.repeat.set(110, 110); detalhe.anisotropy = 8; detalhe.colorSpace = THREE.SRGBColorSpace; detalhe.needsUpdate = true; }, [detalhe]);
-  return (
-    <mesh geometry={geo} receiveShadow>
-      <meshStandardMaterial vertexColors map={detalhe} roughness={0.95} metalness={0} />
-    </mesh>
-  );
+  return <mesh geometry={geo} material={mat} receiveShadow />;
 }
