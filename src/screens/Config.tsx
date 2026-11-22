@@ -45,7 +45,7 @@ export function Config() {
         <Botao texto="Ligada" ativo={config.vozAtiva} onPress={() => setConfig({ vozAtiva: true })} />
         <Botao texto="Desligada" ativo={!config.vozAtiva} onPress={() => setConfig({ vozAtiva: false })} />
       </Linha>
-      <Text style={s.desc}>PC: clique na tela para prender o mouse e girar a câmera · WASD anda · Shift corre · Espaço pula · Ctrl/C ou botão direito furtivo · E montar/interagir · Q visão de águia · Clique ataca · Rodinha zoom · Esc solta o mouse</Text>
+      <Text style={s.desc}>PC: clique na tela para prender o mouse e girar a câmera · WASD anda · aperte W duas vezes (ou Shift) para correr · Espaço pula · Ctrl/C ou botão direito furtivo · E montar/interagir · Q visão de águia · Clique ataca · Rodinha zoom · Esc solta o mouse</Text>
       <Botao texto="◂ Voltar" onPress={() => irPara('menu')} />
     </ScrollView>
   );

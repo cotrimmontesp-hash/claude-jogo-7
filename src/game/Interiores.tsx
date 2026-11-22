@@ -26,7 +26,7 @@ export function registrarCasas(l: CasaPos[]) { casasMundo.length = 0; casasMundo
 
 const PLANTA: Record<TipoCasa, { W: number; D: number; porta: number }> = {
   terrea: { W: 9, D: 7, porta: -9 * 0.18 }, sobrado: { W: 10, D: 8, porta: 0 }, venda: { W: 12.5, D: 9, porta: 0 },
-  oficina: { W: 10, D: 7.5, porta: -10 * 0.18 }, ruina: { W: 7, D: 5.5, porta: 0 }, igreja: { W: 10, D: 17, porta: 0 },
+  oficina: { W: 10, D: 7.5, porta: -10 * 0.18 }, principal: { W: 16, D: 11, porta: 0 }, ruina: { W: 7, D: 5.5, porta: 0 }, igreja: { W: 10, D: 17, porta: 0 },
 };
 const paraLocal = (c: CasaPos, x: number, z: number) => {
   const dx = x - c.p[0], dz = z - c.p[2], co = Math.cos(c.r), si = Math.sin(c.r);
@@ -59,7 +59,7 @@ export function colidirCasas(pos: THREE.Vector3) {
 export const INTERIOR = { x: -560, y: 60, z: 0 };             // os cômodos ficam num canto vazio do mar
 const SALA: Record<TipoCasa, { W: number; D: number; H: number }> = {
   terrea: { W: 10, D: 8, H: 3.6 }, sobrado: { W: 12, D: 9, H: 4.2 }, venda: { W: 12, D: 9, H: 4 },
-  oficina: { W: 11, D: 9, H: 4 }, ruina: { W: 10, D: 8, H: 3.6 }, igreja: { W: 12, D: 24, H: 9 },
+  oficina: { W: 11, D: 9, H: 4 }, principal: { W: 18, D: 13, H: 6.5 }, ruina: { W: 10, D: 8, H: 3.6 }, igreja: { W: 12, D: 24, H: 9 },
 };
 interface EstadoInterior { casa: number | null; dica: string; loja: TipoCasa | null; set: (p: Partial<EstadoInterior>) => void }
 export const useInterior = create<EstadoInterior>((set) => ({ casa: null, dica: '', loja: null, set: (p) => set(p) }));
@@ -100,6 +100,15 @@ export const COMERCIANTE: Record<TipoCasa, { nome: string; titulo: string; cor: 
     { nome: '💰 Vender 2 chifres', preco: { chifre: 2 }, ganho: { materiais: { ouro: 2 } } },
   ] },
   ruina: { nome: '', titulo: '', cor: '#000', ofertas: [] },
+  principal: { nome: 'Intendente Brás', titulo: 'Tesoureiro do Clã', cor: '#3a6ad6', ofertas: [
+    { nome: '🧢 Capuz da Irmandade', preco: { ouro: 6, couro_grosso: 2 }, ganho: { armadura: 'irmandade_cabeca' } },
+    { nome: '🦺 Peitoral da Irmandade', preco: { ouro: 12, couro_grosso: 4, ferro: 2 }, ganho: { armadura: 'irmandade_peito' } },
+    { nome: '🧤 Braçadeiras da Irmandade', preco: { ouro: 6, couro_grosso: 2 }, ganho: { armadura: 'irmandade_bracos' } },
+    { nome: '👢 Grevas da Irmandade', preco: { ouro: 8, couro_grosso: 3 }, ganho: { armadura: 'irmandade_pernas' } },
+    { nome: '🪓 Machado Duplo', preco: { ouro: 14, ferro: 6 }, ganho: { arma: 'machado_duplo' } },
+    { nome: '🗡 Lâmina Oculta', preco: { ouro: 18, ferro: 4, osso: 4 }, ganho: { arma: 'lamina_oculta' } },
+    { nome: '🍗 Banquete do clã', preco: { ouro: 2 }, ganho: { comida: { fome: 100, sede: 100, vida: 50 } } },
+  ] },
   igreja: { nome: 'Padre Antônio', titulo: 'Vigário', cor: '#222', ofertas: [
     { nome: '🙏 Bênção (vida cheia)', preco: { ouro: 1 }, ganho: { comida: { vida: 100 } } },
     { nome: '🏹 Arco Simples', preco: { ouro: 3, madeira: 3 }, ganho: { arma: 'arco_simples' } },
@@ -212,7 +221,7 @@ export function LogicaCasas() {
       if (perto >= 0 && clique && consumirUsar()) return entrar(perto);
       if (!caisTerra.length) ILHAS.forEach((il) => { const p = pontoDoCais(il.id); caisTerra.push({ x: p.x, z: p.z }); });
       const noCais = perto < 0 && caisTerra.some((c) => Math.hypot(c.x - jogadorPos.x, c.z - jogadorPos.z) < 14);
-      const nova = noCais ? '🛶 USAR: pegar a canoa e ir para outra ilha' : perto >= 0 ? (casasMundo[perto].tipo === 'igreja' ? '⛪ USAR: entrar na igreja' : casasMundo[perto].tipo === 'oficina' ? '⚒ USAR: entrar na oficina do ferreiro' : casasMundo[perto].tipo === 'venda' ? '🍺 USAR: entrar na venda' : '🚪 USAR: entrar na casa') : '';
+      const nova = noCais ? '🛶 USAR: pegar a canoa e ir para outra ilha' : perto >= 0 ? (casasMundo[perto].tipo === 'principal' ? '🏰 USAR: entrar na Casa Grande do clã' : casasMundo[perto].tipo === 'igreja' ? '⛪ USAR: entrar na igreja' : casasMundo[perto].tipo === 'oficina' ? '⚒ USAR: entrar na oficina do ferreiro' : casasMundo[perto].tipo === 'venda' ? '🍺 USAR: entrar na venda' : '🚪 USAR: entrar na casa') : '';
       if (nova !== dica && (!dica || !dica.startsWith('🌅'))) useInterior.setState({ dica: nova });
       return;
     }
@@ -339,6 +348,17 @@ export function Interior() {
           <Caixa p={[0, 0.9, -D / 2 + 0.45]} s={[1.9, 1.8, 0.8]} m={mats.pedra} />
           <mesh position={[0, 0.45, -D / 2 + 0.86]}><boxGeometry args={[0.9, 0.6, 0.05]} /><primitive object={mats.fogo} attach="material" /></mesh>
           <Caixa p={[0, H / 2 + 1, -D / 2 + 0.35]} s={[1, H - 1.8, 0.6]} m={mats.pedra} />
+        </>}
+        {tipo === 'principal' && <>
+          {/* salão do clã: mesa comprida, bancos, trono e estandartes */}
+          <Caixa p={[3.5, 0.8, 0]} s={[1.6, 0.12, 8]} m={mats.madeira} />
+          {[-3.6, 3.6].map((z) => [2.9, 4.1].map((x) => <Caixa key={`${x}${z}`} p={[x, 0.4, z]} s={[0.12, 0.8, 0.12]} m={mats.escura} />))}
+          {[2.3, 4.7].map((x) => <Caixa key={x} p={[x, 0.45, 0]} s={[0.45, 0.1, 7.6]} m={mats.escura} />)}
+          <Caixa p={[3.5, 0.5, -5.2]} s={[2.4, 1, 1.4]} m={mats.pedra} />
+          <Caixa p={[3.5, 1.4, -5.5]} s={[1.3, 1.2, 0.9]} m={mats.escura} />
+          <Caixa p={[3.5, 2.6, -5.85]} s={[1.3, 1.4, 0.15]} m={mats.tecido} />
+          {[-6, -2, 6].map((x) => <Caixa key={x} p={[x, 3.6, -6.4]} s={[1.4, 3.8, 0.06]} m={mats.tecido} />)}
+          {[-1, 1, 3].map((z) => <mesh key={z} position={[3.5, 0.95, z]}><cylinderGeometry args={[0.09, 0.11, 0.22, 10]} /><primitive object={mats.ouro} attach="material" /></mesh>)}
         </>}
         {/* tapete */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 1.6]}><planeGeometry args={[3, 1.6]} /><primitive object={mats.tecido} attach="material" /></mesh>

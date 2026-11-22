@@ -134,7 +134,7 @@ function gerarLayout() {
     const a = (i / 20) * Math.PI * 2, x = rx + Math.cos(a) * 26, z = rz + Math.sin(a) * 26;
     add(i === 2 ? 'natureza/wall_straight_gate' : 'natureza/wall_straight', noChao(x, z, -a + Math.PI / 2, S * 1.35, 0.3));
   }
-  add('cenario/barracks_blue', noChao(rx, rz - 10, 0, S)); add('cenario/tower_A_red', noChao(rx - 15, rz + 8, 0, S * 0.9));
+  add('casa/principal', noChao(rx, rz - 13, 0, S)); add('cenario/tower_A_red', noChao(rx - 15, rz + 8, 0, S * 0.9));   // Casa Grande do seu clã
   add('cenario/tower_A_red', noChao(rx + 15, rz + 8, 0, S * 0.9)); add('cenario/blacksmith_red', noChao(rx + 12, rz - 4, -Math.PI / 2, S * 0.9));
   for (let i = 0; i < 6; i++) add('natureza/tent', noChao(rx - 9 + (i % 3) * 8, rz + 8 + Math.floor(i / 3) * 7, rnd() * 6, ESCALA.objeto * 1.4, 0));
   for (let i = 0; i < 4; i++) add('natureza/weaponrack', noChao(rx + 3 + i * 1.8, rz + 3, 0, ESCALA.objeto * 1.3, 0));
@@ -145,14 +145,15 @@ function gerarLayout() {
   for (const ilha of ILHAS.filter((i) => i.dono === 'conselho' || i.dono === 'rival')) {
     const [cx, cz] = ilha.centro, conselho = ilha.dono === 'conselho', flag = conselho ? 'natureza/flag_red' : 'natureza/flag_blue';
     if (conselho) add('cenario/castle_blue', noChao(cx, cz, 0, S * 2.6));
-    else { add('cenario/tower_B_red', noChao(cx, cz, 0, S * 1.4)); add('cenario/barracks_blue', noChao(cx + 14, cz - 6, 0.4, S)); }
+    else { add('cenario/tower_B_red', noChao(cx, cz, 0, S * 1.4)); add('cenario/barracks_blue', noChao(cx + 18, cz + 2, 0.4, S)); }
+    add('casa/principal', noChao(cx, cz - 22, 0, S));                     // Casa Grande do clã rival
     add('cenario/tower_A_red', noChao(cx - 20, cz + 14, 0, S)); add('cenario/tower_A_red', noChao(cx + 20, cz + 14, 0, S));
     for (let i = 0; i < 24; i++) {
       const a = (i / 24) * Math.PI * 2, x = cx + Math.cos(a) * 36, z = cz + Math.sin(a) * 36;
       add(i === 6 ? 'natureza/wall_straight_gate' : 'natureza/wall_straight', noChao(x, z, -a + Math.PI / 2, S * 1.4, 0.3));
     }
     for (let i = 0; i < 6; i++) add(flag, noChao(cx + Math.cos(i * 1.05 + 0.5) * 30, cz + Math.sin(i * 1.05 + 0.5) * 30, 0, ESCALA.objeto * 3.2, 0));
-    for (let i = 0; i < 5; i++) add('natureza/tent', noChao(cx - 12 + i * 6, cz - 18, rnd() * 6, ESCALA.objeto * 1.4, 0));
+    for (let i = 0; i < 5; i++) add('natureza/tent', noChao(cx - 12 + i * 6, cz + 24, rnd() * 6, ESCALA.objeto * 1.4, 0));
     marca(cx, cz);
   }
 
@@ -235,7 +236,7 @@ const EH_ARVORE = /natureza\/(trees_|tree_single)/;
 // Construções do pacote estilizado que viram casas coloniais realistas
 const CASA_DE: Record<string, TipoCasa> = {
   'cenario/home_A_red': 'terrea', 'cenario/home_A_yellow': 'terrea', 'cenario/home_B_red': 'sobrado', 'cenario/home_B_blue': 'sobrado',
-  'cenario/tavern_red': 'venda', 'cenario/market_yellow': 'venda', 'cenario/blacksmith_red': 'oficina', 'cenario/church_red': 'igreja', 'cenario/destroyed': 'ruina',
+  'cenario/tavern_red': 'venda', 'cenario/market_yellow': 'venda', 'cenario/blacksmith_red': 'oficina', 'cenario/church_red': 'igreja', 'cenario/destroyed': 'ruina', 'casa/principal': 'principal',
 };
 function casasRealistas(L: Record<string, Transf[]>): CasaPos[] {
   const out: CasaPos[] = [];
@@ -247,7 +248,7 @@ function casasRealistas(L: Record<string, Transf[]>): CasaPos[] {
       const naAldeia = Math.hypot(x - LUGAR.aldeia[0], z - LUGAR.aldeia[1]) < 45;
       const r = naAldeia ? Math.atan2(LUGAR.aldeia[0] - x, LUGAR.aldeia[1] - z) : d < 130 ? Math.atan2(-x, -z) : t.r;
       const y = Math.min(altura(x, z), altura(x + 3, z + 3), altura(x - 3, z - 3)) - 0.25;
-      out.push({ tipo, p: [x, y, z], r, s: tipo === 'igreja' ? 1 : 0.92 + ((Math.abs(x * 13 + z * 7) | 0) % 10) / 60 });
+      out.push({ tipo, p: [x, y, z], r, s: tipo === 'igreja' || tipo === 'principal' ? 1 : 0.92 + ((Math.abs(x * 13 + z * 7) | 0) % 10) / 60 });
     }
   }
   return out;

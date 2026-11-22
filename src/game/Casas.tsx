@@ -8,7 +8,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { useTexture } from './drei';
 import { textura } from './modelos';
 
-export type TipoCasa = 'terrea' | 'sobrado' | 'venda' | 'oficina' | 'ruina' | 'igreja';
+export type TipoCasa = 'terrea' | 'sobrado' | 'venda' | 'oficina' | 'ruina' | 'igreja' | 'principal';
 export interface CasaPos { tipo: TipoCasa; p: [number, number, number]; r: number; s: number }
 
 type Mat = 'parede' | 'telha' | 'madeira' | 'pedra' | 'moldura' | 'vidro' | 'luz' | 'planta' | 'flor' | 'tecido' | 'ferro';
@@ -177,42 +177,80 @@ function terrea(W = 9, D = 7): Partes {
   chamine(P, W * 0.3, -D * 0.15, H);
   toldo(P, -W * 0.18, D, 2.2);
   tralha(P, W * 0.36, D, W * D);
+  hera(P, W / 2 - 0.4, D, 3.2);
   return P;
 }
 
 function sobrado(W = 10, D = 8, sacada = true, andares = 2): Partes {
-  const P = novo(), H = andares === 3 ? 10.8 : 7.6;
-  corpo(P, W, D, H);
-  terreoPedra(P, W, D, 3.3);                                             // térreo de pedra
-  enxaimel(P, W, D, 3.75, andares === 3 ? 7.0 : H - 0.2);                // madeira aparente em cima
+  // andares de cima avançam sobre a rua (balanço de madeira), como nas cidades antigas
+  const P = novo(), H = andares === 3 ? 10.8 : 7.6, J = 0.45, Dj = D + 2 * J, zf = Dj / 2;
+  corpo(P, W, D, 3.9);
+  terreoPedra(P, W, D, 3.3, 0, 1.6);
+  caixa(P, 'parede', W + 0.2, H - 3.9, Dj, 0, 3.9 + (H - 3.9) / 2, 0);                  // andares de cima em balanço
+  for (const s of [1, -1]) for (let x = -W / 2 + 0.5; x <= W / 2 - 0.4; x += 1.2)       // mãos-francesas embaixo do balanço
+    caixa(P, 'madeira', 0.16, 0.16, 0.85, x, 3.55, s * (D / 2 + 0.28), s * 0.75);
+  caixa(P, 'madeira', W + 0.3, 0.26, Dj + 0.1, 0, 3.92, 0);                             // viga do balanço
+  enxaimel(P, W + 0.2, Dj, 4.05, andares === 3 ? 7.0 : H - 0.2);
   if (andares === 3) {
-    caixa(P, 'moldura', W + 0.1, 0.16, D + 0.1, 0, 7.1, 0);
-    for (const x of [-W * 0.32, 0, W * 0.32]) janela(P, x, 8.5, D / 2 + 0.01, 1, 'z');
-    for (const x of [-W * 0.25, W * 0.25]) janela(P, x, 8.5, -D / 2 - 0.01, -1, 'z');
-    // varanda corrida de madeira no 3º andar
-    caixa(P, 'madeira', W - 0.6, 0.14, 1.1, 0, 7.25, D / 2 + 0.55);
-    for (let i = 0; i < Math.floor(W / 0.35); i++) caixa(P, 'madeira', 0.05, 0.85, 0.05, -W / 2 + 0.45 + i * 0.35, 7.7, D / 2 + 1.05);
-    caixa(P, 'madeira', W - 0.6, 0.08, 0.1, 0, 8.15, D / 2 + 1.05);
-    for (const sx of [-1, 1]) caixa(P, 'madeira', 0.14, 0.14, 1.2, sx * (W / 2 - 0.6), 6.95, D / 2 + 0.45, 0.6);
+    caixa(P, 'madeira', W + 0.3, 0.2, Dj + 0.1, 0, 7.1, 0);
+    for (const x of [-W * 0.32, 0, W * 0.32]) janela(P, x, 8.5, zf + 0.01, 1, 'z');
+    for (const x of [-W * 0.25, W * 0.25]) janela(P, x, 8.5, -zf - 0.01, -1, 'z');
+    caixa(P, 'madeira', W - 0.6, 0.14, 1.1, 0, 7.25, zf + 0.55);                         // varanda corrida
+    for (let i = 0; i < Math.floor(W / 0.35); i++) caixa(P, 'madeira', 0.05, 0.85, 0.05, -W / 2 + 0.45 + i * 0.35, 7.7, zf + 1.05);
+    caixa(P, 'madeira', W - 0.6, 0.08, 0.1, 0, 8.15, zf + 1.05);
+    for (const sx of [-1, 1]) caixa(P, 'madeira', 0.14, 0.14, 1.2, sx * (W / 2 - 0.6), 6.95, zf + 0.45, 0.6);
   }
-  caibros(P, W, D, H);
-  chamine(P, -W * 0.32, -D * 0.2, H);
-  if (andares === 3) { placa(P, W * 0.5 - 0.4, D, 3.0); toldo(P, -W * 0.3, D, 2.6); toldo(P, W * 0.3, D, 2.6); tralha(P, -W * 0.42, D, W); }
-  else tralha(P, W * 0.42, D, W * 3);
-  caixa(P, 'moldura', W + 0.1, 0.16, D + 0.1, 0, 3.6, 0);               // friso entre andares
   porta(P, 0, D / 2, 1, 1.4, 2.6);
   for (const x of [-W * 0.32, W * 0.32]) janela(P, x, 2.1, D / 2 + 0.01, 1, 'z');
-  const xs = [-W * 0.32, 0, W * 0.32];
-  for (const x of xs) {
-    janela(P, x, 5.0, D / 2 + 0.01, 1, 'z', true);                      // janelas rasgadas do andar de cima
+  for (const x of [-W * 0.32, 0, W * 0.32]) {
+    janela(P, x, 5.3, zf + 0.01, 1, 'z', true);
     if (sacada) {
-      caixa(P, 'pedra', 1.6, 0.14, 0.7, x, 3.95, D / 2 + 0.35);
-      for (let i = 0; i < 6; i++) caixa(P, 'madeira', 0.05, 0.9, 0.05, x - 0.7 + i * 0.28, 4.45, D / 2 + 0.66);
-      caixa(P, 'madeira', 1.6, 0.07, 0.08, x, 4.92, D / 2 + 0.66);
+      caixa(P, 'pedra', 1.6, 0.14, 0.7, x, 4.25, zf + 0.35);
+      for (let i = 0; i < 6; i++) caixa(P, 'ferro', 0.04, 0.9, 0.04, x - 0.7 + i * 0.28, 4.75, zf + 0.66);
+      caixa(P, 'ferro', 1.6, 0.06, 0.06, x, 5.22, zf + 0.66);
     }
   }
-  for (const x of [-W * 0.25, W * 0.25]) { janela(P, x, 2.1, -D / 2 - 0.01, -1, 'z'); janela(P, x, 5.0, -D / 2 - 0.01, -1, 'z'); }
-  telhado(P, W, D, H, 0.45);
+  for (const x of [-W * 0.25, W * 0.25]) { janela(P, x, 2.1, -D / 2 - 0.01, -1, 'z'); janela(P, x, 5.3, -zf - 0.01, -1, 'z'); }
+  // água-furtada (janela no telhado)
+  const incl = 0.5, alturaT = Math.tan(incl) * (Dj / 2 + 0.55);
+  caixa(P, 'parede', 1.6, 1.4, 1.6, W * 0.2, H + 0.75, zf - 0.9);
+  janela(P, W * 0.2, H + 0.75, zf - 0.09, 1, 'z');
+  caixa(P, 'telha', 2.0, 0.12, 1.9, W * 0.2 - 0.5, H + 1.65, zf - 0.9, 0, 0, 0.55);
+  caixa(P, 'telha', 2.0, 0.12, 1.9, W * 0.2 + 0.5, H + 1.65, zf - 0.9, 0, 0, -0.55);
+  telhado(P, W + 0.2, Dj, H, incl);
+  caibros(P, W + 0.2, Dj, H);
+  chamine(P, -W * 0.32, -D * 0.2, H + alturaT * 0.3);
+  if (andares === 3) { placa(P, W * 0.5 - 0.4, D, 3.0); toldo(P, -W * 0.3, D, 2.6); toldo(P, W * 0.3, D, 2.6); tralha(P, -W * 0.42, D, W); }
+  else { tralha(P, W * 0.42, D, W * 3); hera(P, -W / 2 + 0.3, D, 4.5); }
+  return P;
+}
+
+// hera subindo pela parede da frente
+function hera(P: Partes, x: number, D: number, alt: number) {
+  for (let y = 0.4, k = 0; y < alt; y += 0.3, k++) {
+    const dx = Math.sin(k * 1.7) * 0.35 + Math.sin(k * 0.6) * 0.25, larg = 0.5 + Math.abs(Math.sin(k * 2.3)) * 0.7 * (1 - y / alt);
+    caixa(P, 'planta', larg, 0.34, 0.07, x + dx, y, D / 2 + 0.06 + (k % 2) * 0.02);
+  }
+}
+
+// Casa Grande: sede de cada clã (3 andares, portal de pedra, varanda, frontão e estandartes)
+function principal(): Partes {
+  const W = 16, D = 11, H = 10.5, P = sobrado(W, D, true, 3);
+  const zf = (D + 0.9) / 2;
+  // portal de pedra largo
+  caixa(P, 'pedra', 3.6, 4.2, 0.5, 0, 2.4, D / 2 + 0.2); caixa(P, 'luz', 2.4, 3.2, 0.06, 0, 1.95, D / 2 + 0.48);
+  caixa(P, 'moldura', 4.2, 0.4, 0.7, 0, 4.6, D / 2 + 0.25);
+  for (const sx of [-1, 1]) caixa(P, 'pedra', 0.6, 4.6, 0.6, sx * 2.2, 2.6, D / 2 + 0.35);
+  // frontão triangular no meio da fachada
+  const fr = new THREE.Shape([new THREE.Vector2(-4, 0), new THREE.Vector2(4, 0), new THREE.Vector2(0, 2.6)]);
+  const g = new THREE.ExtrudeGeometry(fr, { depth: 0.4, bevelEnabled: false }); g.translate(0, H, zf - 0.1); P.moldura.push(uvMundo(g, TILE.moldura));
+  caixa(P, 'luz', 0.9, 0.9, 0.06, 0, H + 1.0, zf + 0.32);                                   // óculo iluminado
+  // estandartes do clã pendurados na varanda
+  for (const sx of [-1, 1]) { caixa(P, 'tecido', 1.4, 3.6, 0.05, sx * W * 0.32, 5.6, zf + 1.12); caixa(P, 'madeira', 1.7, 0.08, 0.08, sx * W * 0.32, 7.45, zf + 1.12); }
+  // escadaria
+  for (let i = 0; i < 3; i++) caixa(P, 'pedra', 5 - i * 0.6, 0.2, 0.6, 0, 0.1 + i * 0.2 + 0.3, D / 2 + 1.5 - i * 0.5);
+  // lanternas de cada lado do portal
+  for (const sx of [-1, 1]) { caixa(P, 'luz', 0.3, 0.42, 0.3, sx * 3.1, 3.1, D / 2 + 0.75); caixa(P, 'ferro', 0.05, 0.05, 0.5, sx * 3.1, 3.4, D / 2 + 0.55); }
   return P;
 }
 
@@ -267,7 +305,7 @@ function igreja(): Partes {
 }
 
 const MODELOS: Record<TipoCasa, () => Partes> = {
-  terrea: () => terrea(), sobrado: () => sobrado(), venda: () => sobrado(12.5, 9, true, 3), oficina, ruina, igreja,
+  terrea: () => terrea(), sobrado: () => sobrado(), venda: () => sobrado(12.5, 9, true, 3), oficina, ruina, igreja, principal,
 };
 
 const URLS = Object.fromEntries((['parede', 'telha', 'madeira', 'pedra'] as const).flatMap((k) => [[`${k}_cor`, textura(`casa/${k}_cor.jpg`)], [`${k}_nor`, textura(`casa/${k}_nor.jpg`)]])) as Record<string, string>;
@@ -356,7 +394,7 @@ export function Casas({ lista, sombra = true }: { lista: CasaPos[]; sombra?: boo
     }
   }, [tex]);
   const porTipo = useMemo(() => {
-    const out: Record<TipoCasa, CasaPos[]> = { terrea: [], sobrado: [], venda: [], oficina: [], ruina: [], igreja: [] };
+    const out: Record<TipoCasa, CasaPos[]> = { terrea: [], sobrado: [], venda: [], oficina: [], ruina: [], igreja: [], principal: [] };
     lista.forEach((c) => out[c.tipo].push(c));
     return out;
   }, [lista]);

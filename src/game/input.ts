@@ -17,12 +17,18 @@ export function apertarUsar() { usarEm = Date.now(); }
 export function usarPendente() { return usarEm > 0 && Date.now() - usarEm < 500; }
 export function consumirUsar() { if (!usarPendente()) return false; usarEm = 0; return true; }
 
+// Correr no PC: aperte duas vezes seguidas a tecla de andar (W, A, S ou D) e segure. Solta tudo = para de correr.
+let corridaDupla = false;
+const ultimoToque: Record<string, number> = {};
+const MOVER = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+
 function atualizarTeclado() {
-  const x = (teclas.has('d') ? 1 : 0) - (teclas.has('a') ? 1 : 0);
-  const y = (teclas.has('w') ? 1 : 0) - (teclas.has('s') ? 1 : 0);
+  const x = (teclas.has('d') || teclas.has('arrowright') ? 1 : 0) - (teclas.has('a') || teclas.has('arrowleft') ? 1 : 0);
+  const y = (teclas.has('w') || teclas.has('arrowup') ? 1 : 0) - (teclas.has('s') || teclas.has('arrowdown') ? 1 : 0);
   const len = Math.hypot(x, y) || 1;
   entrada.mover = { x: x / len, y: y / len };
-  entrada.correr = teclas.has('shift');
+  if (!MOVER.some((k) => teclas.has(k))) corridaDupla = false;
+  entrada.correr = teclas.has('shift') || corridaDupla;
   entrada.pular = teclas.has(' ');
   entrada.furtivo = teclas.has('control') || teclas.has('c');
   entrada.interagir = teclas.has('e');
@@ -31,7 +37,12 @@ function atualizarTeclado() {
 
 export function ligarTecladoMouse() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return () => {};
-  const down = (e: KeyboardEvent) => { const k = e.key.toLowerCase(); if (k === 'e' && !e.repeat) apertarUsar(); teclas.add(k); atualizarTeclado(); };
+  const down = (e: KeyboardEvent) => {
+    const k = e.key.toLowerCase();
+    if (k === 'e' && !e.repeat) apertarUsar();
+    if (MOVER.includes(k) && !e.repeat) { const agora = Date.now(); if (agora - (ultimoToque[k] ?? 0) < 320) corridaDupla = true; ultimoToque[k] = agora; }
+    teclas.add(k); atualizarTeclado();
+  };
   const up = (e: KeyboardEvent) => { teclas.delete(e.key.toLowerCase()); atualizarTeclado(); };
   // Clique na tela do jogo prende o mouse: mexer o mouse gira a câmera (Esc solta).
   const alvoValido = (e: Event) => (e.target as HTMLElement)?.tagName === 'CANVAS';
