@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { useTexture } from './drei';
 import { textura } from './modelos';
 
-import { ILHAS, TAM_MUNDO as TAM } from './mapa';
+import { ILHAS, TAM_MUNDO as TAM, LUGAR } from './mapa';
 export const TAM_MUNDO = TAM;
 
 // ruído simples e determinístico (soma de ondas) — mesmo resultado no celular e no PC
@@ -21,6 +21,7 @@ export const distRio = (x: number, z: number) => Math.abs(x - (70 + Math.sin(z *
 export const ALTURA_AGUA = -1.2;
 
 const FUNDO_MAR = -9;
+export const ALTURA_FORTALEZA = 4;
 
 // Relevo da ilha principal: vila plana, morros, serra alta ao norte, rio a leste
 function alturaPrincipal(x: number, z: number) {
@@ -33,6 +34,9 @@ function alturaPrincipal(x: number, z: number) {
   if (rio < 9 && z > -120) h = THREE.MathUtils.lerp(ALTURA_AGUA - 1.4, h, THREE.MathUtils.smoothstep(rio, 3, 9));
   const est = distEstrada(x, z);
   if (est < 4) h = THREE.MathUtils.lerp(h * 0.6, h, est / 4);
+  // platô plano da Fortaleza do Chefão
+  const df = Math.hypot(x - LUGAR.fortaleza[0], z - LUGAR.fortaleza[1]);
+  if (df < 70) h = THREE.MathUtils.lerp(ALTURA_FORTALEZA, h, THREE.MathUtils.smoothstep(df, 46, 70));
   return h;
 }
 

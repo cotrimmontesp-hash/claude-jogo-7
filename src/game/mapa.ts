@@ -24,6 +24,7 @@ export const LUGAR = {
   minas: [175, -150] as [number, number],
   pantano: [95, 225] as [number, number],
   quartel: [40, -95] as [number, number],
+  fortaleza: [-10, -135] as [number, number],      // Fortaleza do Chefão, no meio do mapa
 };
 
 export const ilhaDe = (x: number, z: number) => ILHAS.find((i) => Math.hypot(x - i.centro[0], z - i.centro[1]) < i.raio + 25) ?? null;

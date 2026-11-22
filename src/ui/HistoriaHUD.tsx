@@ -6,7 +6,7 @@ import { HISTORIA, missaoAtual, useHistoria } from '../game/historia';
 import { useViagem, pontoDoCais } from '../game/teleporte';
 import { useInterior, COMERCIANTE, comprar, type Oferta } from '../game/Interiores';
 import { jogadorPos, cameraInfo } from '../game/Mundo';
-import { ILHAS, ilhaDe } from '../game/mapa';
+import { ILHAS, ilhaDe, LUGAR } from '../game/mapa';
 import { cores } from './tema';
 
 export function HistoriaHUD() {
@@ -149,6 +149,7 @@ function MiniMapa({ alvo }: { alvo?: [number, number] }) {
       {ILHAS.filter((i) => i.id !== 'principal').map((i) => (
         <Text key={i.id + 't'} style={[mm.nome, { left: px(i.centro[0]) - 30, top: px(i.centro[1]) - 5 }]}>{i.dono === 'jogador' ? 'SEU CLÃ' : i.nome.replace('Ilha d', '').replace(/^[oa]s? /, '').toUpperCase()}</Text>
       ))}
+      <Text style={[mm.chefao, { left: px(LUGAR.fortaleza[0]) - 30, top: px(LUGAR.fortaleza[1]) - 6 }]}>☠ CHEFÃO</Text>
       {alvo && <Text style={[mm.alvo, { left: px(alvo[0]) - 5, top: px(alvo[1]) - 7 }]}>★</Text>}
       <Text style={[mm.eu, { left: px(jogadorPos.x) - 5, top: px(jogadorPos.z) - 7, transform: [{ rotate: `${180 - rot}deg` }] }]}>▲</Text>
     </View>
@@ -158,6 +159,7 @@ const mm = StyleSheet.create({
   caixa: { position: 'absolute', top: 76, left: 10, width: TAM, height: TAM, borderRadius: 10, backgroundColor: '#1b3a55cc', borderWidth: 1, borderColor: '#e8b64a88', overflow: 'hidden' },
   ilha: { position: 'absolute', borderWidth: 1 },
   nome: { position: 'absolute', width: 60, textAlign: 'center', color: '#fff', fontSize: 6, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
+  chefao: { position: 'absolute', width: 60, textAlign: 'center', color: '#ff5a4a', fontSize: 7, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
   alvo: { position: 'absolute', color: '#ffd36b', fontSize: 11, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
   eu: { position: 'absolute', color: '#fff', fontSize: 10, fontWeight: '900', textShadowColor: '#000', textShadowRadius: 2 },
 });

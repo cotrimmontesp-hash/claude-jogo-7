@@ -12,7 +12,9 @@ export interface Missao {
   quantidade?: number; animal?: string; npc?: string; chefe?: ChefeDef; inimigos?: number;
   antes?: Fala[]; depois?: Fala[]; recompensa?: Recompensa;
 }
-export interface ChefeDef { nome: string; tipo: 'onca' | 'jacare' | 'humano'; vida: number; dano: number; escala: number }
+export interface ChefeDef { nome: string; tipo: 'onca' | 'jacare' | 'humano'; vida: number; dano: number; escala: number; chefao?: boolean }
+/** O chefe mais difícil do jogo: mora na Fortaleza no meio da ilha central */
+export const CHEFAO: ChefeDef = { nome: 'Governador de Ferro — O CHEFÃO', tipo: 'humano', vida: 5200, dano: 46, escala: 1.6, chefao: true };
 export interface Capitulo { titulo: string; missoes: Missao[] }
 
 const L = LUGAR;
@@ -22,6 +24,10 @@ const ILHA_CONSELHO = ILHAS.find((i) => i.id === 'conselho')!.centro;
 
 export const HISTORIA: Capitulo[] = [
   { titulo: 'A Noite do Fogo', missoes: [
+    { titulo: 'O Chamado', tipo: 'ir', local: mais(L.aldeia, -20, -30), raio: 16, objetivo: 'Pegue a canoa no cais do Refúgio e reme até a ilha do meio: a aldeia está pegando fogo!',
+      antes: [{ quem: 'Guerreiro do Clã', texto: 'Inês! Tem fumaça subindo na ilha do meio. É a aldeia da Dona Benedita!' },
+              { quem: 'Inês', texto: 'O Governador de Ferro... Vou até lá. Segurem o Refúgio enquanto eu estiver fora.' },
+              { quem: 'Guerreiro do Clã', texto: 'A canoa está no cais. Chegue perto dela e aperte USAR.' }] },
     { titulo: 'Fuga', tipo: 'ir', local: mais(L.aldeia, -40, -60), raio: 10, objetivo: 'Saia da aldeia em chamas pela trilha do norte',
       antes: [{ quem: 'Dona Benedita', texto: 'Inês! Os homens do Conselho de Ferro puseram fogo em tudo! Corre pela trilha do norte, minha filha!' },
               { quem: 'Inês', texto: 'E vocês? Eu não vou deixar ninguém para trás!' },
@@ -88,9 +94,9 @@ export const HISTORIA: Capitulo[] = [
   { titulo: 'O Último Sino', missoes: [
     { titulo: 'A Travessia', tipo: 'ir', local: ILHA_CONSELHO, raio: 30, objetivo: 'Vá de canoa até a Ilha do Conselho de Ferro' },
     { titulo: 'A Guarda de Elite', tipo: 'derrotar', inimigos: 6, local: [ILHA_CONSELHO[0], ILHA_CONSELHO[1] + 20], raio: 20, objetivo: 'Derrote a guarda de elite na fortaleza' },
-    { titulo: 'O Grão-Conselheiro', tipo: 'chefe', local: ILHA_CONSELHO, raio: 30, objetivo: 'Duelo final contra o Grão-Conselheiro',
-      chefe: { nome: 'Grão-Conselheiro', tipo: 'humano', vida: 1800, dano: 34, escala: 1.35 },
-      antes: [{ quem: 'Grão-Conselheiro', texto: 'Fui eu quem mandou queimar sua aldeia. O ouro vale mais que a vida de camponeses.' },
+    { titulo: 'O Chefão da Fortaleza', tipo: 'chefe', local: [L.fortaleza[0], L.fortaleza[1] - 8], raio: 26, objetivo: 'Volte à ilha do meio e derrote o Governador de Ferro na Fortaleza',
+      chefe: CHEFAO,
+      antes: [{ quem: 'Governador de Ferro', texto: 'Fui eu quem mandou queimar sua aldeia. O ouro vale mais que a vida de camponeses.' },
               { quem: 'Inês', texto: 'Então hoje o ouro volta para quem trabalha nas minas.' }],
       depois: [{ quem: 'Inês', texto: 'Acabou. Que o sino de Vila Rica toque pela liberdade!' }],
       recompensa: { arma: 'espada_lanterna', armaduras: conj('lanterna'), skin: 'ines_sombra', montaria: 'corcel_lanterna' } },
@@ -110,7 +116,7 @@ interface EstadoHistoria {
   dialogo: Fala[] | null; indiceFala: number;
   contagem: number;                      // itens coletados / animais caçados / inimigos derrotados
   coletados: number[];
-  chefe: null | { def: ChefeDef; vida: number };
+  chefe: null | { def: ChefeDef; vida: number; pos: [number, number]; livre?: boolean };
   aviso: string;
   iniciada: string | null;                // chave da missão que já mostrou o diálogo de início
   abrirDialogo: (f: Fala[]) => void; avancar: () => void; set: (p: Partial<EstadoHistoria>) => void;

@@ -7,7 +7,9 @@ import { altura } from './Terreno';
 import { jogadorPos } from './Mundo';
 import { entrada, usarPendente } from './input';
 import { Personagem3D, type Anim } from './Personagem3D';
-import { missaoAtual, useHistoria, iniciarMissaoSeNecessario, concluirMissao, type Missao } from './historia';
+import { missaoAtual, useHistoria, iniciarMissaoSeNecessario, concluirMissao, CHEFAO, type Missao, type ChefeDef } from './historia';
+import { TRONO } from './Fortaleza';
+import { tocar } from './som';
 import { useBatalha } from './claLogica';
 import { useJogo } from '../state/store';
 
@@ -17,10 +19,23 @@ export function danoNoChefe(pos: THREE.Vector3, alcance: number, dano: number) {
   const c = useHistoria.getState().chefe; if (!c || c.vida <= 0) return false;
   if (chefePos.distanceTo(pos) < alcance + 1.2 * c.def.escala) {
     const vida = c.vida - dano; useHistoria.setState({ chefe: { ...c, vida } });
-    if (vida <= 0) setTimeout(concluirMissao, 1200);
+    if (vida <= 0) setTimeout(c.livre ? venceuChefao : concluirMissao, 1200);
     return true;
   }
   return false;
+}
+
+// Vitória contra o Chefão fora da história: a melhor arma e armadura do jogo
+function venceuChefao() {
+  useJogo.getState().atualizar((p) => {
+    const armas = p.armas.some((a) => a.id === 'espada_lanterna') ? p.armas : [...p.armas, { id: 'espada_lanterna', nivel: 0 }];
+    const ids = ['cabeca', 'peito', 'bracos', 'pernas'].map((s) => `lanterna_${s}`);
+    const armaduras = [...p.armaduras, ...ids.filter((id) => !p.armaduras.some((a) => a.id === id)).map((id) => ({ id, nivel: 0 }))];
+    return { armas, armaduras, equipado: { arma: 'espada_lanterna', cabeca: ids[0], peito: ids[1], bracos: ids[2], pernas: ids[3] },
+      materiais: { ...p.materiais, ouro: (p.materiais.ouro ?? 0) + 40 }, escolhas: { ...p.escolhas, chefao: 'derrotado' } };
+  });
+  useHistoria.setState({ chefe: null, aviso: '✔ Você derrotou o CHEFÃO! Ganhou a Lâmina da Lanterna, a Armadura da Lanterna e 40 de ouro.' });
+  setTimeout(() => useHistoria.setState({ aviso: '' }), 7000);
 }
 
 const pontosColeta = (m: Missao) => Array.from({ length: m.quantidade ?? 1 }, (_, i) => {
@@ -51,25 +66,34 @@ function Lenha({ pos }: { pos: THREE.Vector3 }) {
 }
 
 // Chefe animal (onça/jacaré) ou humano
-function Chefe({ m }: { m: Missao }) {
+function Chefe({ def, inicio }: { def: ChefeDef; inicio: [number, number] }) {
   const ref = useRef<THREE.Group>(null);
   const [anim, setAnim] = useState<Anim>('Idle');
-  const recarga = useRef(1);
-  const pos = useRef(new THREE.Vector3(m.local[0], altura(m.local[0], m.local[1]), m.local[1]));
-  const def = m.chefe!;
+  const recarga = useRef(1), giro = useRef(7);
+  const pos = useRef(new THREE.Vector3(inicio[0], altura(inicio[0], inicio[1]), inicio[1]));
   useFrame((_, dt) => {
     const c = useHistoria.getState().chefe; const g = ref.current; if (!c || !g) return;
     dt = Math.min(dt, 0.05);
     if (c.vida <= 0) { if (anim !== 'Death_A') setAnim('Death_A'); g.scale.y = def.tipo === 'humano' ? 1 : Math.max(0.2, g.scale.y - dt); return; }
     const d = pos.current.distanceTo(jogadorPos);
-    const vel = def.tipo === 'jacare' ? 3 : def.tipo === 'onca' ? 6.5 : 3.6;
+    const furia = def.chefao && c.vida < def.vida * 0.5;                  // o Chefão fica mais rápido com metade da vida
+    const vel = (def.tipo === 'jacare' ? 3 : def.tipo === 'onca' ? 6.5 : 3.6) * (furia ? 1.45 : def.chefao ? 1.15 : 1);
     let novo: Anim = 'Idle';
+    if (def.chefao) {                                                    // golpe giratório: atinge tudo em volta
+      giro.current -= dt;
+      if (giro.current < 0.8 && giro.current > 0) { novo = '2H_Melee_Attack_Slice' as Anim; if (novo !== anim) setAnim(novo); }
+      if (giro.current <= 0) {
+        giro.current = furia ? 4.5 : 7; tocar('espadaForte');
+        if (d < 5.5) useJogo.getState().atualizar((p) => ({ vida: Math.max(0, p.vida - def.dano * 0.9 * (p.equipado.peito ? 0.75 : 1)) }));
+      }
+      if (giro.current < 0.8) { pos.current.y = altura(pos.current.x, pos.current.z); g.position.copy(pos.current); chefePos.copy(pos.current); return; }
+    }
     if (d > 2.2 * def.escala * 0.8 && d < 45) {
       const dir = jogadorPos.clone().sub(pos.current).setY(0).normalize();
       pos.current.addScaledVector(dir, vel * dt); novo = 'Running_A';
     } else if (d <= 2.2 * def.escala * 0.8) {
       recarga.current -= dt; novo = recarga.current < 0.4 ? '1H_Melee_Attack_Chop' : 'Block';
-      if (recarga.current <= 0) { recarga.current = 1.4; useJogo.getState().atualizar((p) => ({ vida: Math.max(0, p.vida - def.dano * (p.equipado.peito ? 0.7 : 1)) })); }
+      if (recarga.current <= 0) { recarga.current = def.chefao ? (furia ? 0.85 : 1.1) : 1.4; useJogo.getState().atualizar((p) => ({ vida: Math.max(0, p.vida - def.dano * (p.equipado.peito ? 0.7 : 1)) })); }
     }
     pos.current.y = altura(pos.current.x, pos.current.z);
     g.position.copy(pos.current); g.rotation.y = Math.atan2(jogadorPos.x - pos.current.x, jogadorPos.z - pos.current.z);
@@ -78,7 +102,8 @@ function Chefe({ m }: { m: Missao }) {
     // se o jogador cair, ele é "resgatado" com parte da vida e o chefe recupera um pouco
     if ((useJogo.getState().progresso?.vida ?? 1) <= 0) { useJogo.getState().atualizar(() => ({ vida: 50 })); useHistoria.setState({ chefe: { ...c, vida: Math.min(def.vida, c.vida + def.vida * 0.25) } }); }
   });
-  if (def.tipo === 'humano') return <group ref={ref}><Personagem3D arquivo="mixamo/guarda" anim={anim} arma="armas/sword_2handed" escala={0.68 * def.escala} cor="#2a1414" /></group>;
+  if (def.tipo === 'humano') return <group ref={ref}><Personagem3D arquivo="mixamo/guarda" anim={anim} arma="armas/sword_2handed" escala={0.68 * def.escala} cor={def.chefao ? '#1a1a22' : '#2a1414'} />
+    {def.chefao && <mesh position={[0, 0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[4.6, 5.5, 40]} /><meshBasicMaterial color="#ff2a2a" transparent opacity={0.35} toneMapped={false} /></mesh>}</group>;
   const cor = def.tipo === 'onca' ? '#141414' : '#3d4a2a';
   return (
     <group ref={ref}>
@@ -118,6 +143,14 @@ export function HistoriaMundo() {
   const esperandoFala = useRef(false);
 
   useFrame(() => {
+    // Chefão da Fortaleza: dá para desafiar a qualquer hora (é o mais difícil do jogo)
+    const hc = useHistoria.getState();
+    if (!hc.chefe && !(m?.tipo === 'chefe' && m.chefe?.chefao) && Math.hypot(jogadorPos.x - TRONO[0], jogadorPos.z - TRONO[1]) < 24) {
+      const der = useJogo.getState().progresso?.escolhas?.chefao === 'derrotado';
+      useHistoria.setState({ chefe: { def: der ? { ...CHEFAO, vida: CHEFAO.vida * 1.3, dano: CHEFAO.dano * 1.15 } : CHEFAO, vida: CHEFAO.vida * (der ? 1.3 : 1), pos: TRONO, livre: true } });
+      hc.abrirDialogo([{ quem: 'Governador de Ferro', texto: der ? 'Voltou? Desta vez eu não caio.' : 'Quem ousa entrar na minha fortaleza? Esta ilha é minha. Ajoelhe-se ou morra!' }]);
+    }
+    if (hc.chefe?.livre && Math.hypot(jogadorPos.x - TRONO[0], jogadorPos.z - TRONO[1]) > 90) useHistoria.setState({ chefe: null });   // fugiu: o chefão volta ao trono
     if (!m || !modo.startsWith('historia')) return;
     iniciarMissaoSeNecessario();
     const h = useHistoria.getState();
@@ -158,12 +191,13 @@ export function HistoriaMundo() {
         break;
       }
       case 'chefe':
-        if (!h.chefe && dist < (m.raio ?? 30)) { useHistoria.setState({ chefe: { def: m.chefe!, vida: m.chefe!.vida } }); if (m.antes) h.abrirDialogo(m.antes); }
+        if ((!h.chefe || h.chefe.livre) && dist < (m.raio ?? 30)) { useHistoria.setState({ chefe: { def: m.chefe!, vida: m.chefe!.vida, pos: m.local } }); if (m.antes) h.abrirDialogo(m.antes); }
         break;
     }
   });
 
-  if (!m || !modo.startsWith('historia')) return null;
+  const chefeEl = chefe && <Suspense fallback={null}><Chefe key={`${chefe.def.nome}-${chefe.pos.join(',')}-${chefe.livre ? 'l' : 'm'}`} def={chefe.def} inicio={chefe.pos} /></Suspense>;
+  if (!m || !modo.startsWith('historia')) return <>{chefeEl}</>;
   const alvo = new THREE.Vector3(m.local[0], altura(m.local[0], m.local[1]), m.local[1]);
   return (
     <>
@@ -171,7 +205,7 @@ export function HistoriaMundo() {
         ? pontos.map((p, i) => !coletados.includes(i) && <group key={i}><Lenha pos={p} /><Marcador pos={p} cor="#9be15d" /></group>)
         : !(m.tipo === 'chefe' && chefe) && <Marcador pos={alvo} />}
       {m.tipo === 'falar' && <Suspense fallback={null}><NpcHistoria m={m} /></Suspense>}
-      {m.tipo === 'chefe' && chefe && <Suspense fallback={null}><Chefe key={`${capitulo}-${missao}`} m={m} /></Suspense>}
+      {chefeEl}
     </>
   );
 }

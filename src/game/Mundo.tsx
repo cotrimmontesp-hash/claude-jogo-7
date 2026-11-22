@@ -16,6 +16,8 @@ import { enviarEstadoJogador } from '../net/client';
 import { Graficos } from './Graficos';
 import { PRESETS, ORDEM } from './qualidade';
 import { LIMITE_MUNDO, LUGAR, ILHAS } from './mapa';
+import { Fortaleza, colidirFortaleza } from './Fortaleza';
+export const SPAWN_CLA: [number, number] = [-436, -318];
 import { HistoriaMundo, danoNoChefe } from './HistoriaMundo';
 import { Moradores } from './Moradores';
 import { pedidoTeleporte } from './teleporte';
@@ -115,6 +117,7 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
   const [galope, setGalope] = useState(0);
   const { camera } = useThree();
   const progresso = useMemo(() => useJogo.getState().progresso!, []);   // só os dados iniciais
+  const atualizar = useJogo((s) => s.atualizar);
   const heroiId = useJogo((s) => s.progresso?.heroi ?? 'ines');
   const skin = useJogo((s) => s.progresso?.skinAtual);
   const modo = useJogo((s) => s.config.camera);
@@ -124,11 +127,30 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
   const heroi = HEROIS.find((h) => h.id === heroiId)!;
   const mont = montado ? MONTARIAS.find((m) => m.id === montado) : null;
 
-  useEffect(() => { const [x, , z] = progresso.posicao; ref.current?.position.set(x, altura(x, z), z); }, []);
+  useEffect(() => {
+    let [x, , z] = progresso.posicao;
+    // você sempre nasce no seu clã (saves antigos são levados para o Refúgio uma vez)
+    if (progresso.escolhas?.nasceu_cla !== '1') {
+      [x, z] = SPAWN_CLA; atualizar((p) => ({ escolhas: { ...p.escolhas, nasceu_cla: '1' }, posicao: [x, altura(x, z), z] }));
+    }
+    ref.current?.position.set(x, altura(x, z), z);
+  }, []);
 
   useFrame((_, dt) => {
     const g = ref.current; if (!g) return;
     dt = Math.min(dt, 0.05);
+    // caiu (vida zerada): acorda no Refúgio do clã
+    const pv = useJogo.getState().progresso;
+    if (pv && pv.vida <= 0 && !useBatalha.getState().ativa) {
+      const ch = useHistoria.getState().chefe;
+      if (!ch || ch.def.chefao || ch.vida <= 0) {
+        const [sx, sz] = SPAWN_CLA; pedidoTeleporte.alvo = new THREE.Vector3(sx, altura(sx, sz), sz);
+        useInterior.setState({ casa: null, loja: null });
+        atualizar(() => ({ vida: 60 }));
+        useHistoria.setState({ chefe: ch?.def.chefao ? null : ch, aviso: ch?.def.chefao ? '☠ O Chefão te derrubou! Você acordou no Refúgio. Fique mais forte e volte.' : '😵 Você desmaiou e acordou no Refúgio do seu clã.' });
+        setTimeout(() => useHistoria.setState({ aviso: '' }), 5000);
+      }
+    }
     if (pedidoTeleporte.alvo) {
       g.position.copy(pedidoTeleporte.alvo); pedidoTeleporte.alvo = null; velY.current = 0;
       if (Math.hypot(g.position.x - INTERIOR.x, g.position.z - INTERIOR.z) > 60 && dentroDeCasa()) useInterior.setState({ casa: null, dica: '' });
@@ -160,7 +182,7 @@ function Jogador({ onAtacar, alvoPerto }: { onAtacar: (pos: THREE.Vector3, alcan
     }
     g.position.x = THREE.MathUtils.clamp(g.position.x, -LIMITE, LIMITE); g.position.z = THREE.MathUtils.clamp(g.position.z, -LIMITE, LIMITE);
     if (modo === 'lateral') g.position.z = THREE.MathUtils.lerp(g.position.z, 0, 0.1);
-    if (dentroDeCasa()) limitarInterior(g.position); else colidirCasas(g.position);   // paredes sólidas
+    if (dentroDeCasa()) limitarInterior(g.position); else { colidirCasas(g.position); colidirFortaleza(g.position); }   // paredes sólidas
 
     // pulo, gravidade e chão com relevo (não afunda no rio)
     const chao = dentroDeCasa() ? INTERIOR.y : Math.max(altura(g.position.x, g.position.z), ALTURA_AGUA - 0.9);
@@ -475,6 +497,7 @@ export function Mundo() {
       <HistoriaMundo />
       <SomMundo />
       <FaroisClas />
+      <Suspense fallback={null}><Fortaleza /></Suspense>
       <LogicaCasas />
       <Suspense fallback={null}><Interior /></Suspense>
       <Moradores quantidade={qualidade === 'baixo' ? 8 : 14} />
@@ -530,6 +553,10 @@ function FaroisClas() {
   useFrame(({ clock }) => { ref.current?.children.forEach((c, i) => { const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial; if (m) m.opacity = 0.32 + Math.sin(clock.elapsedTime * 1.5 + i) * 0.08; }); });
   return (
     <group ref={ref}>
+      <mesh position={[LUGAR.fortaleza[0], 4 + 80, LUGAR.fortaleza[1] - 14]}>
+        <cylinderGeometry args={[2, 6, 160, 12, 1, true]} />
+        <meshBasicMaterial color="#ff1e1e" transparent opacity={0.35} fog={false} depthWrite={false} blending={THREE.AdditiveBlending} side={THREE.DoubleSide} />
+      </mesh>
       {ILHAS.filter((i) => i.cor).map((i) => (
         <mesh key={i.id} position={[i.centro[0], altura(i.centro[0], i.centro[1]) + 70, i.centro[1]]}>
           <cylinderGeometry args={[1.6, 4.5, 140, 12, 1, true]} />

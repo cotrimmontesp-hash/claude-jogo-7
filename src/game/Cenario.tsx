@@ -48,7 +48,7 @@ function ParteInstanciada({ geo, mat, m, lista, sombra }: { geo: THREE.BufferGeo
 
 // ---------- Layout do mapa ----------
 const noChao = (x: number, z: number, r: number, s: number, afundar = 0.15): Transf => ({ p: [x, altura(x, z) - afundar, z], r, s });
-const livre = (x: number, z: number, folga: number) => distEstrada(x, z) > folga && distRio(x, z) > folga + 4;
+const livre = (x: number, z: number, folga: number) => distEstrada(x, z) > folga && distRio(x, z) > folga + 4 && Math.hypot(x - LUGAR.fortaleza[0], z - LUGAR.fortaleza[1]) > 52;
 
 export const REFUGIO: [number, number] = [ILHAS[1].centro[0], ILHAS[1].centro[1]];   // base do seu clã (ilha própria)
 const [AX, AZ] = LUGAR.aldeia;
