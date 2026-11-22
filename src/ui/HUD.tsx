@@ -70,7 +70,7 @@ export function HUD({ onPausar }: { onPausar: () => void }) {
       )}
       {pc && !entrada.mouseTravado && (
         <View style={s.dica} pointerEvents="none">
-          <Text style={s.dicaTxt}>🖱 Clique na tela para controlar a câmera com o mouse  •  Rodinha: zoom  •  Esc: soltar o mouse</Text>
+          <Text style={s.dicaTxt}>🖱 Clique na tela para controlar a câmera com o mouse  •  W duas vezes: correr  •  E: usar  •  Rodinha: zoom  •  Esc: soltar o mouse</Text>
         </View>
       )}
       <View style={s.topoDir}>
